@@ -50,7 +50,7 @@
         main {
             flex: 1;
             text-align: center;
-            padding: 80px 20px;
+            padding: 100px 20px;
         }
 
         .hero {
@@ -59,7 +59,7 @@
         }
 
         .hero h2 {
-            font-size: 40px;
+            font-size: 42px;
             margin-bottom: 20px;
             color: #00a8ff;
         }
@@ -92,20 +92,6 @@
             transform: translateY(-2px);
         }
 
-        section {
-            padding: 60px 40px;
-            background: rgba(255, 255, 255, 0.05);
-            margin: 40px auto;
-            border-radius: 12px;
-            max-width: 1000px;
-        }
-
-        section h3 {
-            color: #00a8ff;
-            margin-bottom: 20px;
-            font-size: 28px;
-        }
-
         footer {
             background: rgba(0, 0, 0, 0.3);
             text-align: center;
@@ -121,24 +107,23 @@
 </head>
 <body>
     <header>
-            <h1>AURA</h1>
-            <nav>
-                 <a href="/">Home</a>
-                 <a href="/about/">About</a>
-                 <a href="/hardware/">Hardware</a>
-                <a href="/contact/">Contact</a>
-            </nav>
+        <h1>AURA</h1>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/about/">About</a>
+            <a href="/hardware/">Hardware</a>
+            <a href="/contact/">Contact</a>
+        </nav>
     </header>
 
     <main>
         <div class="hero">
             <h2>Welcome to AURA</h2>
             <p>
-                <strong>Automated Unified Recognition-based Attendance (AURA)</strong> is a 
-                next-generation IoT-powered attendance management system designed to simplify 
-                classroom attendance using <strong>RFID + Face Recognition</strong> technology.
-                Built with <strong>ESP32-S3</strong>, <strong>ESP32-CAM</strong>, <strong>PN532</strong>,
-                and a robust <strong>Django backend</strong>.
+                <strong>Automated Unified Recognition-based Attendance (AURA)</strong> is an 
+                IoT-powered smart attendance management system that integrates 
+                <strong>RFID and Facial Recognition</strong> for accurate, secure, and 
+                automated attendance tracking.
             </p>
             <div class="buttons">
                 <button class="btn" onclick="window.location.href='/teacher/login/'">Teacher Login</button>
@@ -146,40 +131,6 @@
             </div>
         </div>
     </main>
-
-    <section id="about">
-        <h3>About Project</h3>
-        <p>
-            AURA is built to automate the attendance marking process in educational institutions. 
-            Using NFC cards and facial verification, it ensures that each student’s attendance 
-            is authenticated securely and efficiently. The system allows teachers to manage 
-            sessions and students easily while HODs can monitor class-level and subject-wise 
-            attendance analytics through an integrated dashboard.
-        </p>
-    </section>
-
-    <section id="hardware">
-        <h3>Hardware Configuration</h3>
-        <p>
-            <ul>
-                <li>ESP32-S3 DevKitC-1 — Main controller and communication hub</li>
-                <li>ESP32-CAM — Handles face recognition and image verification</li>
-                <li>PN532 — RFID/NFC reader for student and teacher identification</li>
-                <li>2.4" SPI ILI9341 TFT Display — Touchscreen interface for teacher actions</li>
-                <li>NRF24L01 (optional) — Wireless communication for remote classroom connectivity</li>
-                <li>SD Card Module — Stores student image data locally</li>
-            </ul>
-        </p>
-    </section>
-
-    <section id="contact">
-        <h3>Contact</h3>
-        <p>
-            For queries, suggestions, or collaborations:<br>
-            <strong>Email:</strong> <a href="mailto:rohan.aura.project@gmail.com" style="color:#00a8ff;">rohan.aura.project@gmail.com</a><br>
-            <strong>GitHub:</strong> <a href="https://github.com/rohan-aura" style="color:#00a8ff;">github.com/rohan-aura</a>
-        </p>
-    </section>
 
     <footer>
         <p>Developed with ❤️ by <span>Rohan Rajendra Deshmukh</span> | Project AURA © 2025</p>
