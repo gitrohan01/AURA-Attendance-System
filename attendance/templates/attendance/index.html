@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AURA | Smart Attendance System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        header h1 {
+            color: #00a8ff;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        nav a {
+            color: #fff;
+            text-decoration: none;
+            margin-left: 25px;
+            font-weight: 500;
+            transition: 0.3s;
+        }
+
+        nav a:hover {
+            color: #00a8ff;
+        }
+
+        main {
+            flex: 1;
+            text-align: center;
+            padding: 80px 20px;
+        }
+
+        .hero {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .hero h2 {
+            font-size: 40px;
+            margin-bottom: 20px;
+            color: #00a8ff;
+        }
+
+        .hero p {
+            font-size: 18px;
+            line-height: 1.6;
+            color: #ddd;
+        }
+
+        .buttons {
+            margin-top: 40px;
+        }
+
+        .btn {
+            background: #00a8ff;
+            color: #fff;
+            padding: 14px 28px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+
+        .btn:hover {
+            background: #0090e0;
+            transform: translateY(-2px);
+        }
+
+        section {
+            padding: 60px 40px;
+            background: rgba(255, 255, 255, 0.05);
+            margin: 40px auto;
+            border-radius: 12px;
+            max-width: 1000px;
+        }
+
+        section h3 {
+            color: #00a8ff;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        footer {
+            background: rgba(0, 0, 0, 0.3);
+            text-align: center;
+            padding: 20px;
+            color: #aaa;
+        }
+
+        footer span {
+            color: #00a8ff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <header>
+            <h1>AURA</h1>
+            <nav>
+                 <a href="/">Home</a>
+                 <a href="/about/">About</a>
+                 <a href="/hardware/">Hardware</a>
+                <a href="/contact/">Contact</a>
+            </nav>
+    </header>
+
+    <main>
+        <div class="hero">
+            <h2>Welcome to AURA</h2>
+            <p>
+                <strong>Automated Unified Recognition-based Attendance (AURA)</strong> is a 
+                next-generation IoT-powered attendance management system designed to simplify 
+                classroom attendance using <strong>RFID + Face Recognition</strong> technology.
+                Built with <strong>ESP32-S3</strong>, <strong>ESP32-CAM</strong>, <strong>PN532</strong>,
+                and a robust <strong>Django backend</strong>.
+            </p>
+            <div class="buttons">
+                <button class="btn" onclick="window.location.href='/teacher/login/'">Teacher Login</button>
+                <button class="btn" onclick="window.location.href='/hod/login/'">HOD Login</button>
+            </div>
+        </div>
+    </main>
+
+    <section id="about">
+        <h3>About Project</h3>
+        <p>
+            AURA is built to automate the attendance marking process in educational institutions. 
+            Using NFC cards and facial verification, it ensures that each student’s attendance 
+            is authenticated securely and efficiently. The system allows teachers to manage 
+            sessions and students easily while HODs can monitor class-level and subject-wise 
+            attendance analytics through an integrated dashboard.
+        </p>
+    </section>
+
+    <section id="hardware">
+        <h3>Hardware Configuration</h3>
+        <p>
+            <ul>
+                <li>ESP32-S3 DevKitC-1 — Main controller and communication hub</li>
+                <li>ESP32-CAM — Handles face recognition and image verification</li>
+                <li>PN532 — RFID/NFC reader for student and teacher identification</li>
+                <li>2.4" SPI ILI9341 TFT Display — Touchscreen interface for teacher actions</li>
+                <li>NRF24L01 (optional) — Wireless communication for remote classroom connectivity</li>
+                <li>SD Card Module — Stores student image data locally</li>
+            </ul>
+        </p>
+    </section>
+
+    <section id="contact">
+        <h3>Contact</h3>
+        <p>
+            For queries, suggestions, or collaborations:<br>
+            <strong>Email:</strong> <a href="mailto:rohan.aura.project@gmail.com" style="color:#00a8ff;">rohan.aura.project@gmail.com</a><br>
+            <strong>GitHub:</strong> <a href="https://github.com/rohan-aura" style="color:#00a8ff;">github.com/rohan-aura</a>
+        </p>
+    </section>
+
+    <footer>
+        <p>Developed with ❤️ by <span>Rohan Rajendra Deshmukh</span> | Project AURA © 2025</p>
+    </footer>
+</body>
+</html>

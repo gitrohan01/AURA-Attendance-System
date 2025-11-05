@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardware Configuration | AURA</title>
+    <style>
+        body {
+            background: #111827;
+            color: #f1f1f1;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            padding: 40px;
+        }
+        header, footer {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        h1 {
+            color: #00a8ff;
+        }
+        .hardware-item {
+            background: rgba(255,255,255,0.05);
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        a {
+            color: #00a8ff;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Hardware Configuration</h1>
+        <nav>
+            <a href="/">Home</a> |
+            <a href="/about/">About</a> |
+            <a href="/contact/">Contact</a>
+        </nav>
+    </header>
+
+    <section class="hardware-item">
+        <h2>ESP32-S3 DevKitC-1</h2>
+        <p>
+            The central controller of AURA. It manages communication between all modules — the PN532 RFID, ESP32-CAM, and the server. 
+            The ESP32-S3 offers dual-core processing and native AI acceleration, making it perfect for IoT and recognition tasks.
+        </p>
+        <a href="https://www.amazon.in/s?k=ESP32-S3+DevKitC-1" target="_blank">🔗 Buy on Amazon</a>
+    </section>
+
+    <section class="hardware-item">
+        <h2>ESP32-CAM</h2>
+        <p>
+            Used for facial recognition and image verification. It captures the student’s image and verifies it against stored SD card data.
+            The module includes a built-in OV2640 camera and supports SD card storage.
+        </p>
+        <a href="https://www.amazon.in/s?k=ESP32-CAM" target="_blank">🔗 Buy on Amazon</a>
+    </section>
+
+    <section class="hardware-item">
+        <h2>PN532 NFC Module</h2>
+        <p>
+            Used for RFID/NFC card reading. Both teacher and student cards are verified using this module, which communicates via I2C/SPI with the ESP32.
+        </p>
+        <a href="https://www.amazon.in/s?k=PN532+NFC+Module" target="_blank">🔗 Buy on Amazon</a>
+    </section>
+
+    <section class="hardware-item">
+        <h2>2.4” ILI9341 SPI TFT Display</h2>
+        <p>
+            Acts as the interface for the teacher. Displays session start, student verification, and summary before upload.
+            Controlled via SPI with touch input for user interaction.
+        </p>
+        <a href="https://www.amazon.in/s?k=2.4+inch+ILI9341+SPI+TFT+Display" target="_blank">🔗 Buy on Amazon</a>
+    </section>
+
+    <section class="hardware-item">
+        <h2>NRF24L01 Wireless Module</h2>
+        <p>
+            Provides optional long-range wireless connectivity between devices or the main server when Wi-Fi is unavailable.
+        </p>
+        <a href="https://www.amazon.in/s?k=NRF24L01+Module" target="_blank">🔗 Buy on Amazon</a>
+    </section>
+
+    <section class="hardware-item">
+        <h2>SD Card Module</h2>
+        <p>
+            Stores image data, session logs, and temporary attendance records before uploading to the main server. 
+            Ensures offline functionality for each class session.
+        </p>
+        <a href="https://www.amazon.in/s?k=SD+Card+Module+Arduino" target="_blank">🔗 Buy on Amazon</a>
+    </section>
+
+    <footer>
+        <p>Developed with ❤️ by <strong>Rohan Rajendra Deshmukh</strong> | Project AURA © 2025</p>
+    </footer>
+</body>
+</html>
