@@ -59,12 +59,12 @@ class Student(models.Model):
 # --- Teacher assignment ----------------------------------------------------
 class TeacherProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='teacher_profile')
-    # subjects they can teach (M2M)
+    nfc_uid = models.CharField(max_length=100, unique=True, null=True, blank=True, help_text="NFC card UID for teacher identification")
     subjects = models.ManyToManyField(Subject, blank=True)
     classes = models.ManyToManyField(ClassGroup, blank=True)  # classes they're assigned to
 
     def __str__(self):
-        return f"Teacher: {self.user.username}"
+        return f"Teacher: {self.user.username} ({self.nfc_uid or 'No UID'})"
 
 
 # --- Sessions and schedule -------------------------------------------------
@@ -74,7 +74,7 @@ class Session(models.Model):
     Teachers start a session (start_time) and later end it (end_time).
     session_key should be unique for daily grouping e.g. CS101-2025-11-05-1
     """
-    session_id = models.CharField(max_length=80)  # logical ID e.g. 'S20251104_1' or server-generated
+    session_id = models.CharField(max_length=80, unique=True)  # logical ID e.g. 'S20251104_1' or server-generated
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
     class_group = models.ForeignKey(ClassGroup, on_delete=models.CASCADE)
     teacher = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
@@ -98,11 +98,12 @@ class Session(models.Model):
 class Attendance(models.Model):
     session = models.ForeignKey('Session', on_delete=models.CASCADE, related_name='attendances')
     student = models.ForeignKey('Student', on_delete=models.CASCADE)
-    timestamp = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(default=timezone.now)
     verified_by_face = models.BooleanField(default=False)
     present = models.BooleanField(default=True)   # True = Present, False = Absent
     source = models.CharField(max_length=32, default='RFID+FACE')  # or 'Manual', 'RFID', 'Face'
     extra = models.JSONField(blank=True, null=True)  # optional metadata (e.g. camera score)
+    device_id = models.CharField(max_length=50, blank=True, null=True)  # which device recorded this
 
     class Meta:
         unique_together = ('session', 'student')
