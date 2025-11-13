@@ -1,0 +1,22 @@
+<!-- attendance/templates/attendance/hod_teacher_detail.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Teacher Detail</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>body{background:#071428;color:#dff6ff;font-family:Segoe UI;padding:18px}.card{background:rgba(255,255,255,0.03);padding:16px;border-radius:10px}</style>
+</head>
+<body>
+  <h2>{{ teacher.get_full_name|default:teacher.username }}</h2>
+  <div class="card">
+    <h3>Sessions</h3>
+    {% for s in sessions %}
+      <div style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.02)">
+        <strong>{{ s.session_id }}</strong>
+        <div class="small">Subject: {{ s.subject }}, Class: {{ s.class_group }}, Start: {{ s.start_time }}</div>
+      </div>
+    {% empty %}
+      <p>No sessions.</p>
+    {% endfor %}
+  </div>
+</body>
+</html>

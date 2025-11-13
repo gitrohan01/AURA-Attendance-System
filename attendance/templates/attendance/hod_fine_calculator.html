@@ -1,0 +1,38 @@
+{% extends "attendance/base.html" %}
+{% block title %}Fine Calculator — AURA{% endblock %}
+{% block content %}
+<div class="bg-white/5 p-6 rounded">
+  <h2 class="font-semibold">Fine Calculator</h2>
+  <form method="post" class="mt-4 space-y-3">
+    {% csrf_token %}
+    <div class="flex gap-3">
+      <select name="rule_id" class="p-2 bg-white/5 rounded">
+        {% for r in rules %}<option value="{{ r.id }}" {% if selected_rule and selected_rule.id==r.id %}selected{% endif %}>{{ r }}</option>{% endfor %}
+      </select>
+      <input type="date" name="start_date" class="p-2 bg-white/5 rounded"/>
+      <input type="date" name="end_date" class="p-2 bg-white/5 rounded"/>
+      <button class="px-3 py-1 bg-sky-500 rounded">Compute</button>
+    </div>
+  </form>
+
+  {% if students %}
+    <div class="mt-4 overflow-auto">
+      <table class="min-w-full text-sm">
+        <thead class="text-left text-slate-300">
+          <tr><th>Student</th><th>%</th><th>Absent days</th><th>Fine (₹)</th></tr>
+        </thead>
+        <tbody>
+          {% for row in students %}
+            <tr class="border-t border-white/5">
+              <td>{{ row.student.student_id }} - {{ row.student.first_name }}</td>
+              <td>{{ row.percentage }}</td>
+              <td>{{ row.absent_days }}</td>
+              <td>{{ row.fine }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#0e0e11] text-gray-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}AURA{% endblock %}</title>
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .sidebar-hover:hover {
+            background: rgba(255,255,255,0.08);
+        }
+    </style>
+</head>
+
+<body class="h-full flex">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-[#111114] border-r border-white/10 px-4 py-6 flex flex-col">
+        <div class="text-2xl font-bold mb-8 text-sky-400">AURA</div>
+
+        <!-- Navigation -->
+        <nav class="space-y-1 text-gray-300">
+            {% if user.is_authenticated %}
+                {% if user.is_teacher %}
+                <a href="{% url 'teacher_dashboard' %}" class="block p-2 rounded sidebar-hover">📘 Teacher Dashboard</a>
+                {% endif %}
+
+                {% if user.is_hod %}
+                <a href="{% url 'hod_dashboard' %}" class="block p-2 rounded sidebar-hover">📚 HOD Dashboard</a>
+                <a href="{% url 'device_status' %}" class="block p-2 rounded sidebar-hover">🖥 Devices</a>
+                <a href="{% url 'hod_fine_calculator' %}" class="block p-2 rounded sidebar-hover">💰 Fine Calculator</a>
+                {% endif %}
+            {% endif %}
+
+            <a href="{% url 'about' %}" class="block p-2 rounded sidebar-hover">ℹ️ About</a>
+            <a href="{% url 'hardware' %}" class="block p-2 rounded sidebar-hover">🔧 Hardware</a>
+            <a href="{% url 'contact' %}" class="block p-2 rounded sidebar-hover">📞 Contact</a>
+        </nav>
+
+        <div class="mt-auto">
+            {% if user.is_authenticated %}
+                <form action="/logout/" method="post">
+                    {% csrf_token %}
+                    <button class="w-full bg-red-600 hover:bg-red-700 mt-4 py-2 rounded">Logout</button>
+                </form>
+            {% endif %}
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+</body>
+</html>

@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 
+
 # --- User model ------------------------------------------------------------
 class User(AbstractUser):
     # Use Django's auth; extend if you want extra fields (phone, dept)
@@ -145,3 +146,60 @@ class ExportLog(models.Model):
 
     def __str__(self):
         return f"Export {self.id} by {self.created_by} at {self.created_at}"
+    
+
+    # --- Fine rules for HOD ------------------------------------------------
+class FineRule(models.Model):
+    """
+    A simple fine rule: when attendance percentage < threshold => fine per absent day
+    """
+    name = models.CharField(max_length=120)
+    threshold_percent = models.PositiveSmallIntegerField(
+        default=75,
+        help_text="If attendance < this percent, fine applies"
+    )
+    fine_per_day = models.DecimalField(
+        max_digits=8, decimal_places=2, default=50.00,
+        help_text="Amount charged per absent day"
+    )
+    active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.threshold_percent}% -> ₹{self.fine_per_day})"
+
+
+# --- Device heartbeat ---------------------------------------------------
+class Device(models.Model):
+    device_id = models.CharField(max_length=120, unique=True)
+    name = models.CharField(max_length=200, blank=True, null=True)
+    last_heartbeat = models.DateTimeField(null=True, blank=True)
+    meta = models.JSONField(blank=True, null=True)
+
+    @property
+    def is_online(self):
+        from django.utils import timezone
+        if not self.last_heartbeat:
+            return False
+        return (timezone.now() - self.last_heartbeat).total_seconds() < 90
+
+    def __str__(self):
+        return self.device_id
+
+
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+@receiver(post_save, sender=TeacherProfile)
+def set_teacher_flags(sender, instance, created, **kwargs):
+    user = instance.user
+
+    # Ensure teacher accounts are marked correctly
+    if not user.is_teacher:
+        user.is_teacher = True
+
+    # Teachers need staff status to log in
+    if not user.is_staff:
+        user.is_staff = True
+
+    user.save()

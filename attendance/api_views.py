@@ -1,34 +1,29 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.utils import timezone
-from .models import Attendance, Session, Student, TeacherProfile, Subject, ClassGroup
-from .serializers import AttendanceSerializer, StudentSerializer, SessionSerializer
 
+from .models import (
+    Attendance, Session, Student,
+    TeacherProfile, Subject, ClassGroup, Device
+)
+from .serializers import (
+    AttendanceSerializer, StudentSerializer, SessionSerializer
+)
 
-# --- GET /api/students/ ---
+# -------------------------------------------------------------------
+#   /api/students/
+# -------------------------------------------------------------------
 class StudentViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    Allows viewing all registered students (for debugging or IoT sync).
-    """
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
 
-
-# --- POST /api/attendance/ ---
+# -------------------------------------------------------------------
+#   /api/attendance/  (mark attendance)
+# -------------------------------------------------------------------
 @api_view(['POST'])
 def mark_attendance(request):
-    """
-    ESP32 / IoT devices send attendance data here as JSON.
-    Example:
-    {
-        "student_id": "STU_001",
-        "session_id": "S_CS101_20251112_184501",
-        "verified_by_face": true,
-        "present": true,
-        "timestamp": "2025-11-12T18:30:00Z"
-    }
-    """
     try:
         student_id = request.data.get('student_id')
         session_id = request.data.get('session_id')
@@ -42,7 +37,7 @@ def mark_attendance(request):
         if not student or not session:
             return Response(
                 {'status': 'error', 'message': 'Invalid student or session ID'},
-                status=status.HTTP_400_BAD_REQUEST
+                status=400
             )
 
         attendance, created = Attendance.objects.update_or_create(
@@ -56,46 +51,31 @@ def mark_attendance(request):
             }
         )
 
-        return Response(
-            {'status': 'success', 'created': created},
-            status=status.HTTP_201_CREATED
-        )
+        return Response({'status': 'success', 'created': created}, status=201)
 
     except Exception as e:
-        return Response(
-            {'status': 'error', 'message': str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        return Response({'status': 'error', 'message': str(e)}, status=500)
 
-
-# --- POST /api/start_session/ ---
+# -------------------------------------------------------------------
+#   /api/start_session/
+# -------------------------------------------------------------------
 @api_view(['POST'])
 def start_session(request):
-    """
-    Called when a teacher taps their NFC card.
-    Data:
-    {
-        "teacher_uid": "TCH_001",
-        "subject_code": "CS101",
-        "class_group": "BCA_2025"
-    }
-    """
     try:
         teacher_uid = request.data.get('teacher_uid')
         subject_code = request.data.get('subject_code')
         class_name = request.data.get('class_group')
 
-        # Validate teacher
         teacher_profile = TeacherProfile.objects.filter(user__username=teacher_uid).first()
         if not teacher_profile:
             return Response({'status': 'error', 'message': 'Invalid teacher UID'}, status=400)
 
         subject = Subject.objects.filter(code=subject_code).first()
         class_group = ClassGroup.objects.filter(name=class_name).first()
-        if not subject or not class_group:
-            return Response({'status': 'error', 'message': 'Invalid subject or class group'}, status=400)
 
-        # Generate unique session ID
+        if not subject or not class_group:
+            return Response({'status': 'error', 'message': 'Invalid subject or class'}, status=400)
+
         time_str = timezone.now().strftime('%Y%m%d_%H%M%S')
         session_id = f"S_{subject_code}_{time_str}"
 
@@ -112,17 +92,11 @@ def start_session(request):
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=500)
 
-
-# --- POST /api/end_session/ ---
+# -------------------------------------------------------------------
+#   /api/end_session/
+# -------------------------------------------------------------------
 @api_view(['POST'])
 def end_session(request):
-    """
-    Called when teacher taps again to end the class.
-    Data:
-    {
-        "session_id": "S_CS101_20251112_184501"
-    }
-    """
     try:
         session_id = request.data.get('session_id')
         session = Session.objects.filter(session_id=session_id).first()
@@ -137,3 +111,35 @@ def end_session(request):
 
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=500)
+
+# -------------------------------------------------------------------
+#   /api/heartbeat/
+# -------------------------------------------------------------------
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def device_heartbeat(request):
+    """
+    IoT Heartbeat:
+    {
+        "device_id": "ESP32-CLASS2",
+        "name": "Class 2 Gate",
+        "meta": {"ip":"192.168.1.21"}
+    }
+    """
+    data = request.data
+    device_id = data.get("device_id")
+
+    if not device_id:
+        return Response({"status":"error", "message":"device_id required"}, status=400)
+
+    device, created = Device.objects.get_or_create(
+        device_id=device_id,
+        defaults={"name": data.get("name"), "meta": data.get("meta")}
+    )
+
+    device.last_heartbeat = timezone.now()
+    device.name = data.get("name", device.name)
+    device.meta = data.get("meta", device.meta)
+    device.save()
+
+    return Response({"status": "ok", "created": created}, status=200)

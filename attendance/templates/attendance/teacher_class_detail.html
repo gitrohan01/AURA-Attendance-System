@@ -1,0 +1,68 @@
+{% extends "attendance/base.html" %}
+{% block title %}Class Detail — AURA{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-sky-400 mb-6">
+    {{ class_group.name }} — Class Overview
+</h1>
+
+<!-- Export Buttons -->
+<div class="flex gap-3 mb-6">
+    <a href="{% url 'class_export_csv' class_group.id %}" class="px-4 py-2 bg-white/10 rounded hover:bg-white/20">CSV</a>
+    <a href="{% url 'class_export_xlsx' class_group.id %}" class="px-4 py-2 bg-white/10 rounded hover:bg-white/20">XLSX</a>
+
+    <button id="notifyBtn" class="px-4 py-2 bg-sky-500 hover:bg-sky-600 rounded">
+        Notify HOD
+    </button>
+</div>
+
+<!-- Sessions -->
+<div class="bg-white/5 p-5 rounded-xl mb-8">
+    <h2 class="text-xl font-semibold mb-3">Sessions</h2>
+    <ul class="space-y-2">
+        {% for s in sessions %}
+        <li class="p-3 bg-white/5 rounded">
+            <div class="font-medium">Session {{ s.session_id }}</div>
+            <div class="text-gray-300 text-sm">{{ s.start_time }}</div>
+
+            <div class="flex gap-3 mt-2">
+                <a href="{% url 'session_export_csv' s.id %}" class="px-2 py-1 bg-white/10 rounded">CSV</a>
+                <a href="{% url 'session_export_xlsx' s.id %}" class="px-2 py-1 bg-white/10 rounded">XLSX</a>
+                <a href="{% url 'session_export_pdf' s.id %}" class="px-2 py-1 bg-white/10 rounded">PDF</a>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+
+<!-- Weekly Summary -->
+<div class="bg-white/5 p-6 rounded-xl border border-white/10">
+    <h2 class="font-semibold mb-4">Past 7 Days Summary</h2>
+
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="text-gray-300">
+                <th class="text-left">Student</th>
+                <th>%</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for row in summary %}
+            <tr class="border-t border-white/10">
+                <td class="py-2">{{ row.student.first_name }} {{ row.student.last_name }}</td>
+                <td>{{ row.percentage }}%</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+document.getElementById("notifyBtn").onclick = () => {
+    fetch("{% url 'notify_hod_class' class_group.id %}", { method: "POST", headers: { "X-CSRFToken": "{{ csrf_token }}" }})
+        .then(res => res.json())
+        .then(() => alert("HOD Notified Successfully!"));
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Session Report</title></head>
+<body>
+<h2>Session Report - {{ session.session_id }}</h2>
+<p>Class: {{ session.class_group.name }} | Subject: {{ session.subject.name }}</p>
+<table border="1" cellpadding="6" cellspacing="0" width="100%">
+  <thead><tr><th>Student</th><th>Present</th><th>Verified by Face</th><th>Timestamp</th></tr></thead>
+  <tbody>
+    {% for a in attendances %}
+      <tr>
+        <td>{{ a.student.student_id }} - {{ a.student.first_name }} {{ a.student.last_name }}</td>
+        <td>{{ a.present }}</td>
+        <td>{{ a.verified_by_face }}</td>
+        <td>{{ a.timestamp }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</body>
+</html>

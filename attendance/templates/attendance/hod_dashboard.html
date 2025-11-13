@@ -1,0 +1,52 @@
+<!-- attendance/templates/attendance/hod_dashboard.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HOD Dashboard | AURA</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body{background:linear-gradient(135deg,#07142a,#131a2b);color:#dff6ff;font-family:Segoe UI;padding:16px}
+.header{display:flex;justify-content:space-between;align-items:center}
+.grid{display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-top:16px}
+.card{background:rgba(255,255,255,0.03);padding:16px;border-radius:10px}
+.teacher-list{max-height:420px;overflow:auto}
+.teacher-item{display:flex;justify-content:space-between;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:8px}
+.btn{background:#00a8ff;color:#021a27;padding:10px;border-radius:8px;border:none;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="header">
+  <div><h2>HOD Dashboard</h2><div class="small">Welcome, {{ request.user.get_full_name or request.user.username }}</div></div>
+  <div><a class="btn" href="/">Home</a></div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h3>Teachers</h3>
+    <div class="teacher-list">
+      {% for t in teachers %}
+      <div class="teacher-item">
+        <div>{{ t.get_full_name|default:t.username }}</div>
+        <div><a class="btn" href="{% url 'hod_teacher_detail' t.id %}">Open</a></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Department Analytics (last 30 days)</h3>
+    <canvas id="deptChart" height="220"></canvas>
+  </div>
+</div>
+
+<script>
+fetch("{% url 'hod_department_stats' %}")
+  .then(r=>r.json())
+  .then(data=>{
+    const ctx = document.getElementById('deptChart').getContext('2d');
+    new Chart(ctx,{type:'bar',data:{labels:data.labels,datasets:[{label:'Avg Attendance',data:data.values}]},options:{indexAxis:'y'}});
+  });
+</script>
+</body>
+</html>

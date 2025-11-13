@@ -1,0 +1,26 @@
+{% extends "attendance/base.html" %}
+{% block title %}Device Status — AURA{% endblock %}
+{% block content %}
+<div class="bg-white/5 p-6 rounded">
+  <h2 class="font-semibold">Devices</h2>
+  <div class="mt-4 space-y-3">
+    {% for d in devices %}
+      <div class="flex justify-between items-center p-3 bg-white/3 rounded">
+        <div>
+          <div class="font-medium">{{ d.device_id }} {% if d.name %}- {{ d.name }}{% endif %}</div>
+          <div class="text-sm text-slate-300">Last: {{ d.last_heartbeat }}</div>
+        </div>
+        <div>
+          {% if d.is_online %}
+            <span class="px-3 py-1 bg-green-400 text-black rounded">ONLINE</span>
+          {% else %}
+            <span class="px-3 py-1 bg-red-500 text-black rounded">OFFLINE</span>
+          {% endif %}
+        </div>
+      </div>
+    {% empty %}
+      <div class="text-slate-300">No devices registered.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

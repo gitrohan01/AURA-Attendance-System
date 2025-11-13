@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from decouple import config 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -123,5 +124,21 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+LOGIN_URL = '/teacher/login/'
+
+LOGOUT_REDIRECT_URL = '/teacher/login/'
+LOGIN_REDIRECT_URL = '/teacher/dashboard/'
 
 AUTH_USER_MODEL = 'attendance.User'
+
+# ==============================
+# EMAIL CONFIGURATION (GMAIL)
+# ==============================
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = config("AURA_EMAIL_USER")
+EMAIL_HOST_PASSWORD = config("AURA_EMAIL_PASS")
+DEFAULT_FROM_EMAIL = config("AURA_DEFAULT_FROM")
