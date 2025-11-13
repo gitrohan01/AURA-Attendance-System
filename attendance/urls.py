@@ -83,4 +83,32 @@ urlpatterns = [
     path("hod/fines/class/<int:class_id>/", views.fine_calculator, name="hod_fine_calculator_class"),
 
     path("hod/devices/", views.device_status, name="device_status"),
+
+
+
+    path("teacher/notify_students/", views.notify_students_redflag, name="notify_students_redflag"),
+
+
+
+    # Teacher Reports
+path("teacher/reports/", views.teacher_reports, name="teacher_reports"),
+path("teacher/reports/class/<int:class_id>/", views.teacher_report_class, name="teacher_report_class"),
+path("teacher/reports/subject/<int:subject_id>/", views.teacher_report_subject, name="teacher_report_subject"),
+path("teacher/reports/student/<str:student_id>/", views.teacher_report_student, name="teacher_report_student"),
+path("teacher/reports/monthly/", views.teacher_report_monthly, name="teacher_report_monthly"),
+
+
+
+# Subject Reports
+path("teacher/report/subject/<int:subject_id>/", views.teacher_report_subject, name="teacher_report_subject"),
+path("teacher/report/subject/<int:subject_id>/stats/", views.subject_stats_api, name="subject_stats_api"),
+
+path("teacher/report/subject/<int:subject_id>/export/csv/", views.export_subject_csv_view, name="export_subject_csv"),
+path("teacher/report/subject/<int:subject_id>/export/xlsx/", views.export_subject_xlsx_view, name="export_subject_xlsx"),
+path("teacher/report/subject/<int:subject_id>/export/pdf/", views.export_subject_pdf_view, name="export_subject_pdf"),
+
+
+path("subject/<int:subject_id>/export/pdf/", views.subject_export_pdf, name="subject_export_pdf"),
+
+
 ]

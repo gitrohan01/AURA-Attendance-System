@@ -1,20 +1,39 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-[#0e0e11] text-gray-100">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}AURA{% endblock %}</title>
 
-    <!-- Tailwind CDN -->
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/phosphor-icons"></script>
 
     <style>
         body {
             font-family: 'Inter', sans-serif;
         }
-        .sidebar-hover:hover {
-            background: rgba(255,255,255,0.08);
+
+        .sidebar-link {
+            transition: 0.15s all;
+            border-radius: 8px;
+        }
+
+        .sidebar-link:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .sidebar-heading {
+            font-size: 0.70rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #7b7b7b;
+            margin-bottom: 6px;
+            margin-top: 25px;
         }
     </style>
 </head>
@@ -22,40 +41,89 @@
 <body class="h-full flex">
 
     <!-- Sidebar -->
-    <aside class="w-64 bg-[#111114] border-r border-white/10 px-4 py-6 flex flex-col">
-        <div class="text-2xl font-bold mb-8 text-sky-400">AURA</div>
+    <aside class="w-64 bg-[#111114] border-r border-white/10 px-4 py-6 flex flex-col fixed md:static h-full">
+        <div class="text-3xl font-bold mb-8 text-sky-400 tracking-wide">AURA</div>
 
         <!-- Navigation -->
         <nav class="space-y-1 text-gray-300">
+
             {% if user.is_authenticated %}
+
+                <!-- ========== TEACHER MENU ========== -->
                 {% if user.is_teacher %}
-                <a href="{% url 'teacher_dashboard' %}" class="block p-2 rounded sidebar-hover">📘 Teacher Dashboard</a>
+                <div class="sidebar-heading">Teacher</div>
+
+                <a href="{% url 'teacher_dashboard' %}" class="flex items-center gap-2 p-2 sidebar-link">
+                    <i class="ph ph-gauge"></i> Dashboard
+                </a>
+
+                <a href="{% url 'teacher_reports' %}" class="flex items-center gap-2 p-2 sidebar-link">
+                    <i class="ph ph-file-text"></i> Reports
+                </a>
+
+                <a href="{% url 'teacher_redflags' %}" class="flex items-center gap-2 p-2 sidebar-link">
+                    <i class="ph ph-warning"></i> Red Flags
+                </a>
+
+                <a href="{% url 'teacher_sessions' %}" class="flex items-center gap-2 p-2 sidebar-link">
+                    <i class="ph ph-calendar-check"></i> Sessions
+                </a>
                 {% endif %}
 
+                <!-- ========== HOD MENU ========== -->
                 {% if user.is_hod %}
-                <a href="{% url 'hod_dashboard' %}" class="block p-2 rounded sidebar-hover">📚 HOD Dashboard</a>
-                <a href="{% url 'device_status' %}" class="block p-2 rounded sidebar-hover">🖥 Devices</a>
-                <a href="{% url 'hod_fine_calculator' %}" class="block p-2 rounded sidebar-hover">💰 Fine Calculator</a>
+                <div class="sidebar-heading">HOD</div>
+
+                <a href="{% url 'hod_dashboard' %}" class="flex items-center gap-2 p-2 sidebar-link">
+                    <i class="ph ph-books"></i> Dashboard
+                </a>
+
+                <a href="{% url 'device_status' %}" class="flex items-center gap-2 p-2 sidebar-link">
+                    <i class="ph ph-desktop-tower"></i> Device Status
+                </a>
+
+                <a href="{% url 'hod_fine_calculator' %}" class="flex items-center gap-2 p-2 sidebar-link">
+                    <i class="ph ph-currency-rupee"></i> Fine Calculator
+                </a>
+
+                <a href="/admin/" class="flex items-center gap-2 p-2 sidebar-link">
+                    <i class="ph ph-shield-check"></i> Admin Panel
+                </a>
                 {% endif %}
+
             {% endif %}
 
-            <a href="{% url 'about' %}" class="block p-2 rounded sidebar-hover">ℹ️ About</a>
-            <a href="{% url 'hardware' %}" class="block p-2 rounded sidebar-hover">🔧 Hardware</a>
-            <a href="{% url 'contact' %}" class="block p-2 rounded sidebar-hover">📞 Contact</a>
+            <!-- ========== GENERAL MENU ========== -->
+            <div class="sidebar-heading">General</div>
+
+            <a href="{% url 'about' %}" class="flex items-center gap-2 p-2 sidebar-link">
+                <i class="ph ph-info"></i> About
+            </a>
+
+            <a href="{% url 'hardware' %}" class="flex items-center gap-2 p-2 sidebar-link">
+                <i class="ph ph-wrench"></i> Hardware
+            </a>
+
+            <a href="{% url 'contact' %}" class="flex items-center gap-2 p-2 sidebar-link">
+                <i class="ph ph-phone"></i> Contact
+            </a>
         </nav>
 
+        <!-- Logout -->
         <div class="mt-auto">
             {% if user.is_authenticated %}
-                <form action="/logout/" method="post">
-                    {% csrf_token %}
-                    <button class="w-full bg-red-600 hover:bg-red-700 mt-4 py-2 rounded">Logout</button>
-                </form>
+            <form action="/logout/" method="post">
+                {% csrf_token %}
+                <button class="w-full bg-red-600 hover:bg-red-700 py-2 rounded-lg flex items-center justify-center gap-2 mt-4">
+                    <i class="ph ph-sign-out"></i> Logout
+                </button>
+            </form>
             {% endif %}
         </div>
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 p-6">
+    <main class="flex-1 p-6 md:ml-64">
         {% block content %}
         {% endblock %}
     </main>

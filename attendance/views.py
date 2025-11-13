@@ -4,10 +4,24 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
 from datetime import date, timedelta
 import datetime
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+from django.shortcuts import redirect
+
+
+from .utils import (
+    export_subject_csv,
+    export_subject_xlsx,
+    export_subject_pdf
+)
+
+
+from .utils import red_flag_students_for_user, render_redflag_email, send_email_notification
+
 
 from .models import (
     User, ClassGroup, Session, Student,
-    Department, Attendance, FineRule, Device
+    Department, Attendance, FineRule, Device, Subject
 )
 
 from .utils import (
@@ -337,3 +351,226 @@ def fine_calculator(request, class_id=None):
 def device_status(request):
     devices = Device.objects.all().order_by('-last_heartbeat')
     return render(request, "attendance/device_status.html", {"devices": devices})
+
+
+
+
+
+
+@login_required
+@user_passes_test(is_teacher)
+def teacher_dashboard(request):
+    profile = request.user.teacher_profile
+    classes = profile.classes.all()
+    subjects = profile.subjects.all()
+
+    # red-flag students for dashboard (last 30 days, threshold 60)
+    red_flags = red_flag_students_for_user(request.user, days=30, threshold=60)
+
+    return render(request, "attendance/teacher_dashboard.html", {
+        "classes": classes,
+        "subjects": subjects,
+        "red_flags": red_flags,
+    })
+
+
+@login_required
+@user_passes_test(is_teacher)
+@require_POST
+def notify_students_redflag(request):
+    """
+    Send email to each red-flag student (manual on-demand push).
+    Returns JSON with counts.
+    """
+    # Optionally accept `days` and `threshold` from POST, but we use defaults
+    days = int(request.POST.get("days", 30))
+    threshold = float(request.POST.get("threshold", 60))
+
+    flagged = red_flag_students_for_user(request.user, days=days, threshold=threshold)
+    sent = 0
+    errors = []
+
+    for row in flagged:
+        s = row["student"]
+        c = row["class_group"]
+        perc = row["percentage"]
+        if not s.email:
+            errors.append(f"{s.student_id} missing email")
+            continue
+        subject, body = render_redflag_email(s, c, perc)
+        try:
+            send_email_notification(subject, body, [s.email])
+            sent += 1
+        except Exception as e:
+            errors.append(f"{s.student_id}: {str(e)}")
+
+    return JsonResponse({"status": "ok", "sent": sent, "errors": errors})
+
+
+
+# ---------------------------------------------------------
+# Teacher Reports Hub
+# ---------------------------------------------------------
+@login_required
+@user_passes_test(is_teacher)
+def teacher_reports(request):
+    profile = request.user.teacher_profile
+    return render(request, "attendance/teacher_reports.html", {
+        "classes": profile.classes.all(),
+        "subjects": profile.subjects.all(),
+    })
+
+
+# ---------------------------------------------------------
+# Class Report
+# ---------------------------------------------------------
+@login_required
+@user_passes_test(is_teacher)
+def teacher_report_class(request, class_id):
+    class_group = get_object_or_404(ClassGroup, id=class_id)
+    students = Student.objects.filter(class_group=class_group)
+    sessions = Session.objects.filter(class_group=class_group)
+
+    return render(request, "attendance/teacher_report_class.html", {
+        "class_group": class_group,
+        "students": students,
+        "sessions": sessions,
+    })
+
+
+# ---------------------------------------------------------
+# Subject Report
+# ---------------------------------------------------------
+@login_required
+@user_passes_test(is_teacher)
+def teacher_report_subject(request, subject_id):
+    subject = get_object_or_404(Subject, id=subject_id)
+    sessions = Session.objects.filter(subject=subject)
+
+    return render(request, "attendance/teacher_report_subject.html", {
+        "subject": subject,
+        "sessions": sessions,
+    })
+
+
+# ---------------------------------------------------------
+# Student Report
+# ---------------------------------------------------------
+@login_required
+@user_passes_test(is_teacher)
+def teacher_report_student(request, student_id):
+    student = get_object_or_404(Student, student_id=student_id)
+
+    records = Attendance.objects.filter(student=student)
+    sessions = Session.objects.filter(attendances__student=student).distinct()
+
+    return render(request, "attendance/teacher_report_student.html", {
+        "student": student,
+        "records": records,
+        "sessions": sessions,
+    })
+
+
+# ---------------------------------------------------------
+# Monthly Analytics
+# ---------------------------------------------------------
+@login_required
+@user_passes_test(is_teacher)
+def teacher_report_monthly(request):
+    teacher = request.user
+
+    # all sessions taken by this teacher
+    sessions = Session.objects.filter(teacher=teacher)
+
+    return render(request, "attendance/teacher_report_monthly.html", {
+        "sessions": sessions,
+    })
+
+
+
+
+@login_required
+@user_passes_test(is_teacher)
+def subject_stats_api(request, subject_id):
+    subject = get_object_or_404(Subject, id=subject_id)
+
+    today = date.today()
+    days, present_list, absent_list = [], [], []
+
+    for i in range(29, -1, -1):
+        d = today - timedelta(days=i)
+        days.append(d.strftime("%d %b"))
+
+        present = Attendance.objects.filter(
+            session__subject=subject,
+            present=True,
+            timestamp__date=d
+        ).count()
+
+        absent = Attendance.objects.filter(
+            session__subject=subject,
+            present=False,
+            timestamp__date=d
+        ).count()
+
+        present_list.append(present)
+        absent_list.append(absent)
+
+    # average attendance %
+    total_present = sum(present_list)
+    total_absent = sum(absent_list)
+    total = total_present + total_absent
+
+    avg30 = round((total_present / total) * 100, 2) if total else 0
+
+    return JsonResponse({
+        "days": days,
+        "present": present_list,
+        "absent": absent_list,
+        "average_30": avg30
+    })
+
+
+
+@login_required
+@user_passes_test(is_teacher)
+def export_subject_csv_view(request, subject_id):
+    subject = get_object_or_404(Subject, id=subject_id)
+    csv_buf = export_subject_csv(subject)
+
+    response = HttpResponse(csv_buf.getvalue(), content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="{subject.code}_report.csv"'
+    return response
+
+
+@login_required
+@user_passes_test(is_teacher)
+def export_subject_xlsx_view(request, subject_id):
+    subject = get_object_or_404(Subject, id=subject_id)
+    bio = export_subject_xlsx(subject)
+
+    response = HttpResponse(
+        bio.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response["Content-Disposition"] = f'attachment; filename="{subject.code}_report.xlsx"'
+    return response
+
+
+@login_required
+@user_passes_test(is_teacher)
+def export_subject_pdf_view(request, subject_id):
+    subject = get_object_or_404(Subject, id=subject_id)
+    pdf_bytes = export_subject_pdf(subject)
+    return HttpResponse(pdf_bytes, content_type="application/pdf")
+
+
+@login_required
+@user_passes_test(is_teacher)
+def subject_export_pdf(request, subject_id):
+    pdf = export_subject_pdf(subject_id)
+    response = HttpResponse(pdf.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="subject_{subject_id}.pdf"'
+    return response
+
+

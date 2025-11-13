@@ -2,8 +2,30 @@
 {% block title %}Teacher Dashboard — AURA{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-bold text-sky-400 mb-6">Teacher Dashboard</h1>
 
+<h1 class="text-3xl font-bold text-sky-400 mb-6">Teacher Dashboard</h1>
+
+<!-- =================== ACTION BAR ====================== -->
+<div class="flex flex-wrap gap-3 mb-8">
+
+    <a href="{% url 'teacher_sessions' %}"
+       class="px-4 py-2 bg-sky-600 hover:bg-sky-700 rounded-lg shadow text-white font-semibold">
+        ▶ Start / End Session
+    </a>
+
+    <a href="{% url 'teacher_reports' %}"
+       class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow text-white font-semibold">
+        📊 Reports
+    </a>
+
+    <a href="{% url 'teacher_redflags' %}"
+       class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg shadow text-white font-semibold">
+        🚩 Red Flag Students
+    </a>
+
+</div>
+
+<!-- =================== GRID ====================== -->
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
     <!-- Classes -->
@@ -11,8 +33,12 @@
         <h2 class="text-xl font-semibold mb-3">Your Classes</h2>
         <div class="space-y-2">
             {% for c in classes %}
-            <a href="{% url 'teacher_class_detail' c.id %}" class="block p-3 rounded bg-white/5 hover:bg-white/10 transition">
-                {{ c.name }} — {{ c.department.name }}
+            <a href="{% url 'teacher_class_detail' c.id %}"
+               class="block p-3 rounded bg-white/5 hover:bg-white/10 transition">
+                <div class="font-semibold">{{ c.name }}</div>
+                <div class="text-sm text-gray-400">
+                    {{ c.department.name }}
+                </div>
             </a>
             {% empty %}
             <p class="text-gray-400">No classes assigned.</p>
@@ -25,7 +51,10 @@
         <h2 class="text-xl font-semibold mb-3">Your Subjects</h2>
         <ul class="space-y-1">
             {% for s in subjects %}
-            <li class="p-2 bg-white/5 rounded">{{ s.name }} ({{ s.code }})</li>
+            <li class="p-3 bg-white/5 rounded">
+                <span class="font-semibold">{{ s.name }}</span>
+                <span class="text-gray-400">({{ s.code }})</span>
+            </li>
             {% empty %}
             <p class="text-gray-400">No subjects assigned.</p>
             {% endfor %}
@@ -34,7 +63,83 @@
 
 </div>
 
-<!-- Weekly Chart -->
+
+<!-- ================= RED FLAG STUDENTS ================= -->
+<div class="mt-10 bg-red-500/10 p-6 rounded-xl border border-red-500/20 shadow-lg">
+    <h2 class="text-xl font-semibold mb-3 text-red-400">
+        🚩 Students Below 60% Attendance (Last 30 Days)
+    </h2>
+
+    {% if red_flags %}
+        <ul class="space-y-2">
+            {% for r in red_flags %}
+            <li class="p-3 rounded bg-white/5">
+                <strong>{{ r.student.student_id }}</strong> —
+                {{ r.student.first_name }} {{ r.student.last_name }}
+                <br>
+                Class: <strong>{{ r.class_group.name }}</strong>
+                <br>
+                Attendance:
+                <span class="text-red-400 font-bold">{{ r.percentage }}%</span>
+
+                {% if not r.student.email %}
+                    <span class="ml-2 text-orange-400">(No email)</span>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+
+        <form id="notify-redflag" method="post"
+              action="{% url 'notify_students_redflag' %}" class="mt-4">
+            {% csrf_token %}
+            <input type="hidden" name="days" value="30">
+            <input type="hidden" name="threshold" value="60">
+
+            <button type="submit"
+                class="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white font-semibold transition">
+                📧 Email These Students
+            </button>
+        </form>
+
+        <p id="notify-result" class="mt-3 text-sm text-gray-300"></p>
+
+        <script>
+        (function(){
+          const form = document.getElementById('notify-redflag');
+          const result = document.getElementById('notify-result');
+
+          form.addEventListener('submit', function(e){
+            e.preventDefault();
+            result.textContent = "Sending emails...";
+            fetch(form.action, {
+              method: "POST",
+              headers: {
+                "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
+                "Accept": "application/json",
+                "X-Requested-With": "XMLHttpRequest"
+              },
+              body: new FormData(form)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "ok") {
+                    result.textContent = `Emails sent: ${data.sent}. Errors: ${data.errors.length}`;
+                } else {
+                    result.textContent = "Error sending emails.";
+                }
+            })
+            .catch(() => result.textContent = "Network error.");
+          });
+        })();
+        </script>
+
+    {% else %}
+        <p class="text-gray-400">No red-flag students 🎉</p>
+    {% endif %}
+</div>
+
+
+<!-- ================= WEEKLY CHART ================= -->
 <div class="mt-10 bg-white/5 p-6 rounded-xl border border-white/10">
     <h2 class="font-semibold mb-4">Last 7 Days Attendance</h2>
     <canvas id="weeklyChart" height="120"></canvas>
@@ -50,8 +155,18 @@ fetch("{% url 'teacher_weekly_stats' %}")
         data: {
             labels: data.labels,
             datasets: [
-                { label: "Present", data: data.present, borderWidth: 2, borderColor: "rgb(59,130,246)" },
-                { label: "Absent", data: data.absent, borderWidth: 2, borderColor: "rgb(239,68,68)" }
+                {
+                    label: "Present",
+                    data: data.present,
+                    borderWidth: 2,
+                    borderColor: "rgb(59,130,246)"
+                },
+                {
+                    label: "Absent",
+                    data: data.absent,
+                    borderWidth: 2,
+                    borderColor: "rgb(239,68,68)"
+                }
             ]
         }
     })

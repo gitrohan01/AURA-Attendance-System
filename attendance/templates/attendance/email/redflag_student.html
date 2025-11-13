@@ -1,0 +1,11 @@
+<!-- attendance/templates/attendance/email/redflag_student.html -->
+<p>Dear {{ student.first_name }},</p>
+
+<p>This is an automated attendance alert from AURA.</p>
+
+<p>Your attendance in <strong>{{ class_group.name }}</strong> is <strong>{{ percentage }}%</strong> over the last month,
+which is below the threshold of {{ threshold }}%.</p>
+
+<p>Please contact your teacher or HOD if you need assistance.</p>
+
+<p>Regards,<br/>AURA Attendance System</p>
