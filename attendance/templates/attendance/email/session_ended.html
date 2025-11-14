@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+  <body>
+    <p>Session summary for <strong>{{ session.session_id }}</strong></p>
+    <ul>
+      <li>Class: {{ session.class_group.name }}</li>
+      <li>Subject: {{ session.subject.name }}</li>
+      <li>Start: {{ session.start_time }}</li>
+      <li>End: {{ session.end_time }}</li>
+      <li>Present: {{ present }}</li>
+      <li>Absent: {{ absent }}</li>
+      <li>Total records: {{ total }}</li>
+    </ul>
+    <p>Report generated at {{ report_date }}.</p>
+    <p>— AURA</p>
+  </body>
+</html>

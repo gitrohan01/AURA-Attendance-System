@@ -45,7 +45,9 @@
     <div class="bg-white/5 p-6 rounded-xl hover:bg-white/10 transition border border-white/10 shadow-lg">
         <h2 class="text-xl font-semibold mb-4">👤 Student Profile Report</h2>
         <p class="text-gray-400 text-sm mb-2">Enter a student ID to generate a full attendance profile.</p>
-        <form method="get" action="{% url 'teacher_report_student' %}">
+        <form method="get" action=""
+      onsubmit="this.action='/teacher/reports/student/' + this.student.value + '/'">
+
             <input type="text" name="student" placeholder="Student ID"
                    class="w-full p-2 rounded bg-white/10 border border-white/20 text-white"
                    required />

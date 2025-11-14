@@ -1,0 +1,10 @@
+<!doctype html>
+<html>
+  <body>
+    <p>Hi {{ teacher.get_full_name|default:teacher.username }},</p>
+    <p>Your session <strong>{{ session.session_id }}</strong> for <strong>{{ session.subject.name }}</strong>
+       ({{ session.class_group.name }}) has started at {{ session.start_time }}.</p>
+    <p>Students will be able to mark attendance using the classroom device.</p>
+    <p>— AURA</p>
+  </body>
+</html>

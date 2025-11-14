@@ -1,36 +1,47 @@
+# attendance/views.py
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
 from datetime import date, timedelta
 import datetime
-from django.views.decorators.http import require_POST
-from django.http import JsonResponse
-from django.shortcuts import redirect
-
 
 from .utils import (
     export_subject_csv,
     export_subject_xlsx,
-    export_subject_pdf
+    export_subject_pdf,
+    red_flag_students_for_user,
+    render_redflag_email,
+    send_email_notification,
+    attendance_percentage,
+    export_class_csv,
+    export_session_csv,
+    export_session_pdf,
+    export_class_xlsx,
+    export_session_xlsx
 )
-
-
-from .utils import red_flag_students_for_user, render_redflag_email, send_email_notification
-
 
 from .models import (
     User, ClassGroup, Session, Student,
     Department, Attendance, FineRule, Device, Subject
 )
-
-from .utils import (
-    attendance_percentage, send_email_notification,
-    export_class_csv, export_session_csv, export_session_pdf,
-    export_class_xlsx, export_session_xlsx
-)
 from django.contrib.auth import authenticate, login
 
+
+# ---------------------
+# Permissions
+# ---------------------
+def is_teacher(user):
+    return user.is_authenticated and getattr(user, "is_teacher", False)
+
+
+def is_hod(user):
+    return user.is_authenticated and getattr(user, "is_hod", False)
+
+
+# ---------------------
+# Teacher Login (kept simple)
+# ---------------------
 def teacher_login(request):
     next_page = request.GET.get("next", "/teacher/dashboard/")
 
@@ -55,17 +66,9 @@ def teacher_login(request):
     return render(request, "attendance/teacher_login.html",
                   {"next": next_page})
 
-# -------------------------------------------------------------------
-#   Permissions
-# -------------------------------------------------------------------
-def is_teacher(user):
-    return user.is_authenticated and getattr(user, "is_teacher", False)
-
-def is_hod(user):
-    return user.is_authenticated and getattr(user, "is_hod", False)
 
 # -------------------------------------------------------------------
-#   Teacher Dashboard
+# Teacher Dashboard (merged + single canonical function)
 # -------------------------------------------------------------------
 @login_required
 @user_passes_test(is_teacher)
@@ -74,13 +77,18 @@ def teacher_dashboard(request):
     classes = profile.classes.all()
     subjects = profile.subjects.all()
 
+    # red-flag students for dashboard (last 30 days, threshold 60)
+    red_flags = red_flag_students_for_user(request.user, days=30, threshold=60)
+
     return render(request, "attendance/teacher_dashboard.html", {
         "classes": classes,
         "subjects": subjects,
+        "red_flags": red_flags,
     })
 
+
 # -------------------------------------------------------------------
-#   Teacher Class Detail
+# Teacher Class Detail
 # -------------------------------------------------------------------
 @login_required
 @user_passes_test(is_teacher)
@@ -108,8 +116,9 @@ def teacher_class_detail(request, class_id):
         "summary": summary,
     })
 
+
 # -------------------------------------------------------------------
-#   HOD Dashboard
+# HOD Dashboard
 # -------------------------------------------------------------------
 @login_required
 @user_passes_test(is_hod)
@@ -117,8 +126,9 @@ def hod_dashboard(request):
     teachers = User.objects.filter(is_teacher=True)
     return render(request, "attendance/hod_dashboard.html", {"teachers": teachers})
 
+
 # -------------------------------------------------------------------
-#   HOD → Teacher Detail
+# HOD → Teacher Detail
 # -------------------------------------------------------------------
 @login_required
 @user_passes_test(is_hod)
@@ -131,8 +141,9 @@ def hod_teacher_detail(request, teacher_id):
         "sessions": sessions,
     })
 
+
 # -------------------------------------------------------------------
-#   Chart.js → Teacher Weekly Stats
+# Chart APIs (teacher / class / hod)
 # -------------------------------------------------------------------
 @login_required
 @user_passes_test(is_teacher)
@@ -158,9 +169,7 @@ def teacher_weekly_stats(request):
 
     return JsonResponse({"labels": labels, "present": present, "absent": absent})
 
-# -------------------------------------------------------------------
-#   Chart.js → Class Weekly Stats
-# -------------------------------------------------------------------
+
 @login_required
 @user_passes_test(is_teacher)
 def teacher_class_weekly_stats(request, class_id):
@@ -185,9 +194,7 @@ def teacher_class_weekly_stats(request, class_id):
 
     return JsonResponse({"labels": labels, "present": present, "absent": absent})
 
-# -------------------------------------------------------------------
-#   HOD → Department Stats
-# -------------------------------------------------------------------
+
 @login_required
 @user_passes_test(is_hod)
 def hod_department_stats(request):
@@ -212,8 +219,9 @@ def hod_department_stats(request):
 
     return JsonResponse({"labels": labels, "values": values})
 
+
 # -------------------------------------------------------------------
-#   Export → Class CSV
+# Exports (CSV/XLSX/PDF)
 # -------------------------------------------------------------------
 @login_required
 @user_passes_test(is_teacher)
@@ -223,9 +231,7 @@ def class_export_csv(request, class_id):
     response["Content-Disposition"] = f'attachment; filename="class_{class_id}.csv"'
     return response
 
-# -------------------------------------------------------------------
-#   Export → Session CSV/PDF
-# -------------------------------------------------------------------
+
 @login_required
 @user_passes_test(is_teacher)
 def session_export_csv_view(request, session_id):
@@ -234,15 +240,14 @@ def session_export_csv_view(request, session_id):
     response["Content-Disposition"] = f'attachment; filename="session_{session_id}.csv"'
     return response
 
+
 @login_required
 @user_passes_test(is_teacher)
 def session_export_pdf_view(request, session_id):
     pdf_bytes = export_session_pdf(session_id)
     return HttpResponse(pdf_bytes, content_type="application/pdf")
 
-# -------------------------------------------------------------------
-#   Export → XLSX
-# -------------------------------------------------------------------
+
 @login_required
 @user_passes_test(is_teacher)
 def class_export_xlsx(request, class_id):
@@ -253,6 +258,7 @@ def class_export_xlsx(request, class_id):
     )
     response['Content-Disposition'] = f'attachment; filename="class_{class_id}.xlsx"'
     return response
+
 
 @login_required
 @user_passes_test(is_teacher)
@@ -265,8 +271,9 @@ def session_export_xlsx_view(request, session_id):
     response['Content-Disposition'] = f'attachment; filename="session_{session_id}.xlsx"'
     return response
 
+
 # -------------------------------------------------------------------
-#   Notify HOD via Email
+# Notify HOD via Email
 # -------------------------------------------------------------------
 @require_POST
 @login_required
@@ -287,8 +294,9 @@ def notify_hod_class(request, class_id):
 
     return JsonResponse({"status": "ok"})
 
+
 # -------------------------------------------------------------------
-#   HOD Fine Calculator
+# HOD Fine Calculator
 # -------------------------------------------------------------------
 @login_required
 @user_passes_test(is_hod)
@@ -343,8 +351,9 @@ def fine_calculator(request, class_id=None):
         "applied_rule": applied_rule,
     })
 
+
 # -------------------------------------------------------------------
-#   Device Status
+# Device Status
 # -------------------------------------------------------------------
 @login_required
 @user_passes_test(is_hod)
@@ -353,36 +362,13 @@ def device_status(request):
     return render(request, "attendance/device_status.html", {"devices": devices})
 
 
-
-
-
-
-@login_required
-@user_passes_test(is_teacher)
-def teacher_dashboard(request):
-    profile = request.user.teacher_profile
-    classes = profile.classes.all()
-    subjects = profile.subjects.all()
-
-    # red-flag students for dashboard (last 30 days, threshold 60)
-    red_flags = red_flag_students_for_user(request.user, days=30, threshold=60)
-
-    return render(request, "attendance/teacher_dashboard.html", {
-        "classes": classes,
-        "subjects": subjects,
-        "red_flags": red_flags,
-    })
-
-
+# -------------------------------------------------------------------
+# Red-flag notify (teacher)
+# -------------------------------------------------------------------
 @login_required
 @user_passes_test(is_teacher)
 @require_POST
 def notify_students_redflag(request):
-    """
-    Send email to each red-flag student (manual on-demand push).
-    Returns JSON with counts.
-    """
-    # Optionally accept `days` and `threshold` from POST, but we use defaults
     days = int(request.POST.get("days", 30))
     threshold = float(request.POST.get("threshold", 60))
 
@@ -407,10 +393,9 @@ def notify_students_redflag(request):
     return JsonResponse({"status": "ok", "sent": sent, "errors": errors})
 
 
-
-# ---------------------------------------------------------
-# Teacher Reports Hub
-# ---------------------------------------------------------
+# -------------------------------------------------------------------
+# Reports + misc pages
+# -------------------------------------------------------------------
 @login_required
 @user_passes_test(is_teacher)
 def teacher_reports(request):
@@ -421,9 +406,6 @@ def teacher_reports(request):
     })
 
 
-# ---------------------------------------------------------
-# Class Report
-# ---------------------------------------------------------
 @login_required
 @user_passes_test(is_teacher)
 def teacher_report_class(request, class_id):
@@ -438,9 +420,6 @@ def teacher_report_class(request, class_id):
     })
 
 
-# ---------------------------------------------------------
-# Subject Report
-# ---------------------------------------------------------
 @login_required
 @user_passes_test(is_teacher)
 def teacher_report_subject(request, subject_id):
@@ -453,9 +432,6 @@ def teacher_report_subject(request, subject_id):
     })
 
 
-# ---------------------------------------------------------
-# Student Report
-# ---------------------------------------------------------
 @login_required
 @user_passes_test(is_teacher)
 def teacher_report_student(request, student_id):
@@ -471,22 +447,15 @@ def teacher_report_student(request, student_id):
     })
 
 
-# ---------------------------------------------------------
-# Monthly Analytics
-# ---------------------------------------------------------
 @login_required
 @user_passes_test(is_teacher)
 def teacher_report_monthly(request):
     teacher = request.user
-
-    # all sessions taken by this teacher
     sessions = Session.objects.filter(teacher=teacher)
 
     return render(request, "attendance/teacher_report_monthly.html", {
         "sessions": sessions,
     })
-
-
 
 
 @login_required
@@ -516,11 +485,9 @@ def subject_stats_api(request, subject_id):
         present_list.append(present)
         absent_list.append(absent)
 
-    # average attendance %
     total_present = sum(present_list)
     total_absent = sum(absent_list)
     total = total_present + total_absent
-
     avg30 = round((total_present / total) * 100, 2) if total else 0
 
     return JsonResponse({
@@ -531,7 +498,9 @@ def subject_stats_api(request, subject_id):
     })
 
 
-
+# -------------------------------------------------------------------
+# Subject exports wrappers
+# -------------------------------------------------------------------
 @login_required
 @user_passes_test(is_teacher)
 def export_subject_csv_view(request, subject_id):
@@ -574,3 +543,25 @@ def subject_export_pdf(request, subject_id):
     return response
 
 
+# -------------------------------------------------------------------
+# Minimal teacher_sessions page (lists past sessions only)
+# -------------------------------------------------------------------
+@login_required
+@user_passes_test(is_teacher)
+def teacher_sessions(request):
+    teacher = request.user
+    sessions = Session.objects.filter(teacher=teacher).order_by("-start_time")
+    return render(request, "attendance/teacher_sessions.html", {
+        "sessions": sessions
+    })
+
+
+@login_required
+@user_passes_test(is_teacher)
+def teacher_redflags(request):
+    # last 30 days red-flag logic
+    red_flags = red_flag_students_for_user(request.user, days=30, threshold=60)
+
+    return render(request, "attendance/teacher_redflags.html", {
+        "red_flags": red_flags
+    })

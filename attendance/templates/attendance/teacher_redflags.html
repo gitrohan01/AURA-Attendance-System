@@ -1,0 +1,25 @@
+{% extends "attendance/base.html" %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-4">Red Flag Students</h1>
+
+<table class="table-auto w-full border">
+    <tr class="bg-gray-200">
+        <th class="p-2 border">Student</th>
+        <th class="p-2 border">Class</th>
+        <th class="p-2 border">Attendance %</th>
+    </tr>
+
+    {% for r in red_flags %}
+    <tr>
+        <td class="p-2 border">{{ r.student.name }}</td>
+        <td class="p-2 border">{{ r.class_group.name }}</td>
+        <td class="p-2 border text-red-600 font-bold">{{ r.percentage }}%</td>
+    </tr>
+    {% empty %}
+    <tr>
+        <td colspan="3" class="p-4 text-center text-gray-500">No red-flag students</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}
