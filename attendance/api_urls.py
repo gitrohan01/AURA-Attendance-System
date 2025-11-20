@@ -9,6 +9,8 @@ from .api_views import (
     device_heartbeat
 )
 
+from .api_views_iot import iot_session_upload
+
 router = DefaultRouter()
 router.register("students", StudentViewSet, basename="student")
 
@@ -18,4 +20,8 @@ urlpatterns = [
     path("start_session/", start_session, name="start_session"),
     path("end_session/", end_session, name="end_session"),
     path("heartbeat/", device_heartbeat, name="device_heartbeat"),
+]
+
+urlpatterns += [
+    path("iot/session/upload/", iot_session_upload),
 ]
