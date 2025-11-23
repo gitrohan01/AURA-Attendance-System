@@ -1,0 +1,45 @@
+{% extends "attendance/base.html" %}
+{% block title %}Edit Class — AURA{% endblock %}
+
+{% block content %}
+
+<h1 class="text-3xl font-bold text-sky-400 mb-6">Edit Class</h1>
+
+<div class="bg-white/5 border border-white/10 rounded-xl p-6 max-w-xl">
+
+<form method="post">
+    {% csrf_token %}
+
+    <label class="block mb-3">
+        <span class="text-gray-300 text-sm">Class Name</span>
+        <input type="text" name="name" value="{{ class_group.name }}" required
+               class="w-full bg-white/10 border border-white/20 px-3 py-2 rounded">
+    </label>
+
+    <label class="block mb-3">
+        <span class="text-gray-300 text-sm">Department</span>
+        <select name="department"
+                class="w-full bg-white/10 border border-white/20 px-3 py-2 rounded">
+            {% for d in departments %}
+            <option value="{{ d.id }}" {% if class_group.department.id == d.id %}selected{% endif %}>
+                {{ d.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+
+    <label class="block mb-4">
+        <span class="text-gray-300 text-sm">Description</span>
+        <textarea name="description"
+                  class="w-full bg-white/10 border border-white/20 px-3 py-2 rounded">{{ class_group.description }}</textarea>
+    </label>
+
+    <button class="w-full px-4 py-2 bg-sky-600 hover:bg-sky-700 rounded">
+        Save Changes
+    </button>
+</form>
+
+</div>
+
+{% endblock %}
+

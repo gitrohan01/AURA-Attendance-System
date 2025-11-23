@@ -1,0 +1,182 @@
+{% extends "attendance/base.html" %}
+{% block title %}HOD Analytics — AURA{% endblock %}
+
+{% block content %}
+
+<h1 class="text-3xl font-bold text-sky-400 mb-6">HOD Analytics</h1>
+
+<p class="text-gray-400 mb-8">
+    Advanced insights generated from last 30 days of attendance, teacher activity,
+    class trends, and subject performance.
+</p>
+
+<!-- ========= GRID OF ALL CHARTS ========= -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- WEEKLY CLASS OVERVIEW -->
+    <div class="bg-white/5 border border-white/10 rounded-xl p-5">
+        <h2 class="text-lg font-semibold mb-2">Weekly Class Overview</h2>
+        <canvas id="weeklyChart"></canvas>
+    </div>
+
+    <!-- MONTHLY TREND -->
+    <div class="bg-white/5 border border-white/10 rounded-xl p-5">
+        <h2 class="text-lg font-semibold mb-2">Monthly Attendance Trend</h2>
+        <canvas id="monthlyChart"></canvas>
+    </div>
+
+    <!-- CLASSWISE DISTRIBUTION -->
+    <div class="bg-white/5 border border-white/10 rounded-xl p-5">
+        <h2 class="text-lg font-semibold mb-2">Class-wise Attendance</h2>
+        <canvas id="classwiseChart"></canvas>
+    </div>
+
+    <!-- SUBJECT HEATMAP -->
+    <div class="bg-white/5 border border-white/10 rounded-xl p-5">
+        <h2 class="text-lg font-semibold mb-2">Subject Heatmap</h2>
+        <canvas id="subjectHeatmap"></canvas>
+    </div>
+
+    <!-- TEACHER ACTIVITY -->
+    <div class="bg-white/5 border border-white/10 rounded-xl p-5">
+        <h2 class="text-lg font-semibold mb-2">Teacher Activity</h2>
+        <canvas id="teacherActivityChart"></canvas>
+    </div>
+
+    <!-- ATTENDANCE DISTRIBUTION -->
+    <div class="bg-white/5 border border-white/10 rounded-xl p-5">
+        <h2 class="text-lg font-semibold mb-2">Overall Attendance Distribution</h2>
+        <canvas id="absenceChart"></canvas>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+
+// ======== 1. Weekly Overview ========
+fetch("{% url 'hod_analytics_weekly' %}")
+  .then(r => r.json())
+  .then(data => {
+      new Chart(document.getElementById("weeklyChart"), {
+          type: "bar",
+          data: {
+              labels: data.labels,
+              datasets: [{
+                  label: "Avg % (last 7 days)",
+                  data: data.values,
+                  backgroundColor: "rgba(56,189,248,0.5)",
+                  borderColor: "rgb(56,189,248)",
+                  borderWidth: 1
+              }]
+          },
+          options: { responsive: true }
+      });
+  });
+
+// ======== 2. Monthly Trend ========
+fetch("{% url 'hod_analytics_monthly' %}")
+  .then(r => r.json())
+  .then(data => {
+      new Chart(document.getElementById("monthlyChart"), {
+          type: "line",
+          data: {
+              labels: data.labels,
+              datasets: [{
+                  label: "Attendance Count",
+                  data: data.values,
+                  borderColor: "rgb(139,92,246)",
+                  borderWidth: 2,
+                  fill: false
+              }]
+          }
+      });
+  });
+
+// ======== 3. Classwise ========
+fetch("{% url 'hod_analytics_classwise' %}")
+  .then(r => r.json())
+  .then(data => {
+      new Chart(document.getElementById("classwiseChart"), {
+          type: "pie",
+          data: {
+              labels: data.labels,
+              datasets: [{
+                  data: data.values,
+                  backgroundColor: [
+                      "rgba(56,189,248,0.6)",
+                      "rgba(139,92,246,0.6)",
+                      "rgba(248,113,113,0.6)",
+                      "rgba(34,197,94,0.6)",
+                      "rgba(250,204,21,0.6)"
+                  ]
+              }]
+          }
+      });
+  });
+
+// ======== 4. Subject Heatmap ========
+fetch("{% url 'hod_analytics_subject_heatmap' %}")
+  .then(r => r.json())
+  .then(data => {
+      new Chart(document.getElementById("subjectHeatmap"), {
+          type: "bar",
+          data: {
+              labels: data.labels,
+              datasets: [
+                  {
+                      label: "Present",
+                      data: data.present,
+                      backgroundColor: "rgba(34,197,94,0.6)"
+                  },
+                  {
+                      label: "Absent",
+                      data: data.absent,
+                      backgroundColor: "rgba(248,113,113,0.6)"
+                  }
+              ]
+          },
+          options: { responsive: true }
+      });
+  });
+
+// ======== 5. Teacher Activity ========
+fetch("{% url 'hod_analytics_teacher_activity' %}")
+  .then(r => r.json())
+  .then(data => {
+      new Chart(document.getElementById("teacherActivityChart"), {
+          type: "bar",
+          data: {
+              labels: data.labels,
+              datasets: [{
+                  label: "Sessions Conducted",
+                  data: data.values,
+                  backgroundColor: "rgba(139,92,246,0.5)",
+                  borderColor: "rgb(139,92,246)"
+              }]
+          }
+      });
+  });
+
+// ======== 6. Absence Distribution ========
+fetch("{% url 'hod_analytics_absence_distribution' %}")
+  .then(r => r.json())
+  .then(data => {
+      new Chart(document.getElementById("absenceChart"), {
+          type: "doughnut",
+          data: {
+              labels: data.labels,
+              datasets: [{
+                  data: data.values,
+                  backgroundColor: [
+                      "rgba(34,197,94,0.6)",
+                      "rgba(248,113,113,0.6)"
+                  ]
+              }]
+          }
+      });
+  });
+
+</script>
+
+{% endblock %}

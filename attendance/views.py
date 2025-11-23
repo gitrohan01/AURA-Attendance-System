@@ -124,21 +124,45 @@ def teacher_class_detail(request, class_id):
 @user_passes_test(is_hod)
 def hod_dashboard(request):
     teachers = User.objects.filter(is_teacher=True)
-    return render(request, "attendance/hod_dashboard.html", {"teachers": teachers})
+    students = Student.objects.all()
+    classes = ClassGroup.objects.all()
+    subjects = Subject.objects.all()
+
+    return render(request, "attendance/hod_dashboard.html", {
+        "teachers": teachers,
+        "teacher_count": teachers.count(),
+        "student_count": students.count(),
+        "class_count": classes.count(),
+        "subject_count": subjects.count(),
+    })
+
 
 
 # -------------------------------------------------------------------
-# HOD → Teacher Detail
+# HOD → Teacher Detail + analytics
 # -------------------------------------------------------------------
 @login_required
 @user_passes_test(is_hod)
 def hod_teacher_detail(request, teacher_id):
-    teacher = get_object_or_404(User, id=teacher_id)
-    sessions = Session.objects.filter(teacher=teacher)
+    teacher = get_object_or_404(User, id=teacher_id, is_teacher=True)
+
+    sessions = Session.objects.filter(
+        teacher=teacher
+    ).order_by("-start_time")[:50]  # last 50 sessions
+
+    total_sessions = Session.objects.filter(teacher=teacher).count()
+    total_att = Attendance.objects.filter(session__teacher=teacher, present=True).count()
+    total_abs = Attendance.objects.filter(session__teacher=teacher, present=False).count()
+    total = total_att + total_abs
+    avg_attendance = round((total_att / total) * 100, 2) if total else 0
 
     return render(request, "attendance/hod_teacher_detail.html", {
         "teacher": teacher,
         "sessions": sessions,
+        "total_sessions": total_sessions,
+        "avg_attendance": avg_attendance,
+        "total_present": total_att,
+        "total_absent": total_abs,
     })
 
 
@@ -218,6 +242,42 @@ def hod_department_stats(request):
         values.append(round(avg, 2))
 
     return JsonResponse({"labels": labels, "values": values})
+
+
+
+# -------------------------------------------------------------------
+# HOD: Teacher weekly stats API (last 7 days, any teacher)
+# -------------------------------------------------------------------
+@login_required
+@user_passes_test(is_hod)
+def hod_teacher_weekly_stats(request, teacher_id):
+    teacher = get_object_or_404(User, id=teacher_id, is_teacher=True)
+
+    today = date.today()
+    labels, present, absent = [], [], []
+
+    for i in range(6, -1, -1):
+        d = today - timedelta(days=i)
+        labels.append(d.strftime("%a %d"))
+
+        present.append(Attendance.objects.filter(
+            present=True,
+            timestamp__date=d,
+            session__teacher=teacher
+        ).count())
+
+        absent.append(Attendance.objects.filter(
+            present=False,
+            timestamp__date=d,
+            session__teacher=teacher
+        ).count())
+
+    return JsonResponse({
+        "labels": labels,
+        "present": present,
+        "absent": absent,
+    })
+
 
 
 # -------------------------------------------------------------------

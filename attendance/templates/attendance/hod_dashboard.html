@@ -1,52 +1,141 @@
-<!-- attendance/templates/attendance/hod_dashboard.html -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>HOD Dashboard | AURA</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-body{background:linear-gradient(135deg,#07142a,#131a2b);color:#dff6ff;font-family:Segoe UI;padding:16px}
-.header{display:flex;justify-content:space-between;align-items:center}
-.grid{display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-top:16px}
-.card{background:rgba(255,255,255,0.03);padding:16px;border-radius:10px}
-.teacher-list{max-height:420px;overflow:auto}
-.teacher-item{display:flex;justify-content:space-between;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:8px}
-.btn{background:#00a8ff;color:#021a27;padding:10px;border-radius:8px;border:none;cursor:pointer}
-</style>
-</head>
-<body>
-<div class="header">
-  <div><h2>HOD Dashboard</h2><div class="small">Welcome, {{ request.user.get_full_name or request.user.username }}</div></div>
-  <div><a class="btn" href="/">Home</a></div>
+{% extends "attendance/base.html" %}
+{% block title %}HOD Dashboard — AURA{% endblock %}
+
+{% block content %}
+
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold text-sky-400">HOD Dashboard</h1>
+
+    <a href="{% url 'hod_analytics_page' %}" 
+       class="px-4 py-2 bg-sky-600 hover:bg-sky-700 rounded-lg text-sm">
+        📊 View Full Analytics
+    </a>
 </div>
 
-<div class="grid">
-  <div class="card">
-    <h3>Teachers</h3>
-    <div class="teacher-list">
+
+<!-- ===== Top Overview Cards ===== -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+
+  <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+    <div class="text-xs uppercase tracking-wide text-gray-400 mb-1">Teachers</div>
+    <div class="text-2xl font-bold">
+      {{ teachers|length }}
+    </div>
+  </div>
+
+  <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+    <div class="text-xs uppercase tracking-wide text-gray-400 mb-1">Students</div>
+    <div class="text-2xl font-bold">
+      {{ total_students }}
+    </div>
+  </div>
+
+  <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+    <div class="text-xs uppercase tracking-wide text-gray-400 mb-1">Classes</div>
+    <div class="text-2xl font-bold">
+      {{ total_classes }}
+    </div>
+  </div>
+
+  <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+    <div class="text-xs uppercase tracking-wide text-gray-400 mb-1">Subjects</div>
+    <div class="text-2xl font-bold">
+      {{ total_subjects }}
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== Main Grid: Teachers + Department Analytics ===== -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- Left: Teacher list -->
+  <div class="lg:col-span-1 bg-white/5 border border-white/10 rounded-xl p-5">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-xl font-semibold">Teachers</h2>
+      <span class="text-xs text-gray-400">
+        Total: {{ teachers|length }}
+      </span>
+    </div>
+
+    <div class="space-y-2 max-h-[420px] overflow-y-auto pr-1">
       {% for t in teachers %}
-      <div class="teacher-item">
-        <div>{{ t.get_full_name|default:t.username }}</div>
-        <div><a class="btn" href="{% url 'hod_teacher_detail' t.id %}">Open</a></div>
-      </div>
+        <div class="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+          <div>
+            <div class="font-semibold">
+              {{ t.get_full_name|default:t.username }}
+            </div>
+            <div class="text-xs text-gray-400">
+              Username: {{ t.username }}
+            </div>
+          </div>
+          <div>
+            <a href="{% url 'hod_teacher_detail' t.id %}"
+               class="px-3 py-1 text-xs bg-sky-600 hover:bg-sky-700 rounded-md">
+              View
+            </a>
+          </div>
+        </div>
+      {% empty %}
+        <p class="text-gray-400 text-sm">No teachers registered.</p>
       {% endfor %}
     </div>
   </div>
 
-  <div class="card">
-    <h3>Department Analytics (last 30 days)</h3>
-    <canvas id="deptChart" height="220"></canvas>
+  <!-- Right: Department analytics chart -->
+  <div class="lg:col-span-2 bg-white/5 border border-white/10 rounded-xl p-5">
+    <h2 class="text-xl font-semibold mb-2">Department Analytics (Last 30 Days)</h2>
+    <p class="text-sm text-gray-400 mb-4">
+      Average attendance per department, based on sessions and attendance records
+      from the last 30 days.
+    </p>
+
+    <canvas id="deptChart" height="140"></canvas>
   </div>
+
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-fetch("{% url 'hod_department_stats' %}")
-  .then(r=>r.json())
-  .then(data=>{
-    const ctx = document.getElementById('deptChart').getContext('2d');
-    new Chart(ctx,{type:'bar',data:{labels:data.labels,datasets:[{label:'Avg Attendance',data:data.values}]},options:{indexAxis:'y'}});
-  });
+  // Fetch department stats for HOD chart
+  fetch("{% url 'hod_department_stats' %}")
+    .then(r => r.json())
+    .then(data => {
+      const ctx = document.getElementById('deptChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: data.labels,
+          datasets: [{
+            label: 'Avg Attendance (%)',
+            data: data.values,
+            borderWidth: 1,
+            backgroundColor: 'rgba(56, 189, 248, 0.5)',
+            borderColor: 'rgb(56, 189, 248)'
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          plugins: {
+            legend: { display: true },
+          },
+          scales: {
+            x: {
+              ticks: { color: '#e5e7eb' },
+              grid: { color: 'rgba(148, 163, 184, 0.2)' },
+              min: 0,
+              max: 100
+            },
+            y: {
+              ticks: { color: '#e5e7eb' },
+              grid: { color: 'rgba(148, 163, 184, 0.1)' },
+            }
+          }
+        }
+      });
+    })
+    .catch(err => console.error("Dept chart error:", err));
 </script>
-</body>
-</html>
+
+{% endblock %}

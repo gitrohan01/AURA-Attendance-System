@@ -3,6 +3,8 @@ from django.urls import path
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login
 from . import views
+from . import hod_views
+
 
 # ----- Public Pages -----
 def index(request): return render(request, 'attendance/index.html')
@@ -106,4 +108,69 @@ urlpatterns = [
     path("teacher/report/subject/<int:subject_id>/export/pdf/", views.export_subject_pdf_view, name="export_subject_pdf"),
 
     path("subject/<int:subject_id>/export/pdf/", views.subject_export_pdf, name="subject_export_pdf"),
+
+
+
+
+    # -----------------------------
+    # HOD CRUD URLs
+    # -----------------------------
+    path("hod/students/", hod_views.manage_students, name="hod_manage_students"),
+    path("hod/students/add/", hod_views.add_student, name="hod_add_student"),
+    path("hod/students/edit/<int:pk>/", hod_views.edit_student, name="hod_edit_student"),
+    path("hod/students/delete/<int:pk>/", hod_views.delete_student, name="hod_delete_student"),
+    path("hod/students/import/", hod_views.import_students, name="hod_import_students"),
+
+    path("hod/teachers/", hod_views.manage_teachers, name="hod_manage_teachers"),
+    path("hod/teachers/add/", hod_views.add_teacher, name="hod_add_teacher"),
+    path("hod/teachers/edit/<int:pk>/", hod_views.edit_teacher, name="hod_edit_teacher"),
+    path("hod/teachers/delete/<int:pk>/", hod_views.delete_teacher, name="hod_delete_teacher"),
+
+    path("hod/classes/", hod_views.manage_classes, name="hod_manage_classes"),
+    path("hod/classes/add/", hod_views.add_class, name="hod_add_class"),
+    path("hod/classes/edit/<int:pk>/", hod_views.edit_class, name="hod_edit_class"),
+    path("hod/classes/delete/<int:pk>/", hod_views.delete_class, name="hod_delete_class"),
+
+    path("hod/subjects/", hod_views.manage_subjects, name="hod_manage_subjects"),
+    path("hod/subjects/add/", hod_views.add_subject, name="hod_add_subject"),
+    path("hod/subjects/edit/<int:pk>/", hod_views.edit_subject, name="hod_edit_subject"),
+    path("hod/subjects/delete/<int:pk>/", hod_views.delete_subject, name="hod_delete_subject"),
+
+# Chart API for HOD → teacher view
+path(
+    "api/hod/teacher/<int:teacher_id>/weekly/",
+    views.hod_teacher_weekly_stats,
+    name="hod_teacher_weekly_stats"
+),
+
+
+
+# -----------------------------
+# HOD - Department CRUD
+# -----------------------------
+path("hod/departments/", hod_views.manage_departments, name="hod_manage_departments"),
+path("hod/departments/add/", hod_views.add_department, name="hod_add_department"),
+path("hod/departments/edit/<int:pk>/", hod_views.edit_department, name="hod_edit_department"),
+path("hod/departments/delete/<int:pk>/", hod_views.delete_department, name="hod_delete_department"),
+
+
+
+# -----------------------------
+# HOD Analytics Endpoints (JSON)
+# -----------------------------
+path("hod/analytics/weekly/", hod_views.analytics_weekly, name="hod_analytics_weekly"),
+path("hod/analytics/monthly/", hod_views.analytics_monthly, name="hod_analytics_monthly"),
+path("hod/analytics/classwise/", hod_views.analytics_classwise, name="hod_analytics_classwise"),
+path("hod/analytics/subject_heatmap/", hod_views.analytics_subject_heatmap, name="hod_analytics_subject_heatmap"),
+path("hod/analytics/teacher_activity/", hod_views.analytics_teacher_activity, name="hod_analytics_teacher_activity"),
+path("hod/analytics/absence_distribution/", hod_views.analytics_absence_distribution, name="hod_analytics_absence_distribution"),
+
+
+# HOD Analytics Page
+path("hod/analytics/", hod_views.hod_analytics_page, name="hod_analytics_page"),
+
+
 ]
+
+
+

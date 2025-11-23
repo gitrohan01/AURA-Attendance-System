@@ -1,0 +1,70 @@
+{% extends "attendance/base.html" %}
+{% block title %}Edit Teacher — AURA{% endblock %}
+
+{% block content %}
+
+<h1 class="text-3xl font-bold text-sky-400 mb-6">Edit Teacher</h1>
+
+<div class="bg-white/5 border border-white/10 rounded-xl p-6 max-w-2xl">
+
+<form method="post">
+    {% csrf_token %}
+
+    <!-- Teacher identity -->
+    <div class="mb-4">
+        <div class="text-gray-400 text-xs uppercase tracking-wide mb-1">
+            Teacher
+        </div>
+        <div class="text-lg font-semibold">
+            {{ profile.user.username }} — {{ profile.user.get_full_name|default:"(no name)" }}
+        </div>
+        <div class="text-xs text-gray-400">
+            {{ profile.user.email|default:"no email" }}
+        </div>
+    </div>
+
+    <!-- NFC UID -->
+    <label class="block mb-4">
+        <span class="text-gray-300 text-sm">NFC UID (Teacher card)</span>
+        <input type="text" name="nfc_uid" value="{{ profile.nfc_uid }}"
+               class="w-full bg-white/10 border border-white/20 px-3 py-2 rounded"
+               placeholder="Leave empty to clear UID">
+    </label>
+
+    <!-- Classes -->
+    <label class="block mb-4">
+        <span class="text-gray-300 text-sm">Classes</span>
+        <select name="classes" multiple
+                class="w-full bg-white/10 border border-white/20 px-3 py-2 rounded min-h-[120px]">
+            {% for c in classes %}
+            <option value="{{ c.id }}" {% if c in profile.classes.all %}selected{% endif %}>
+                {{ c.name }}
+            </option>
+            {% endfor %}
+        </select>
+        <p class="text-xs text-gray-400 mt-1">
+            Hold CTRL / CMD to select multiple.
+        </p>
+    </label>
+
+    <!-- Subjects -->
+    <label class="block mb-6">
+        <span class="text-gray-300 text-sm">Subjects</span>
+        <select name="subjects" multiple
+                class="w-full bg-white/10 border border-white/20 px-3 py-2 rounded min-h-[120px]">
+            {% for s in subjects %}
+            <option value="{{ s.id }}" {% if s in profile.subjects.all %}selected{% endif %}>
+                {{ s.code }} — {{ s.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+
+    <button class="w-full px-4 py-2 bg-sky-600 hover:bg-sky-700 rounded">
+        Save Changes
+    </button>
+</form>
+
+</div>
+
+{% endblock %}

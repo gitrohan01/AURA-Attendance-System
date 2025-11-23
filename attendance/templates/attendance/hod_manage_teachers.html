@@ -1,0 +1,101 @@
+{% extends "attendance/base.html" %}
+{% block title %}Manage Teachers — AURA{% endblock %}
+
+{% block content %}
+
+<h1 class="text-3xl font-bold text-sky-400 mb-6">Manage Teachers</h1>
+
+<div class="flex justify-between items-center mb-6">
+    <form method="get" class="flex gap-2">
+        <input type="text" name="q" placeholder="Search teacher..."
+               class="bg-white/10 border border-white/20 px-3 py-2 rounded text-sm w-64">
+        <button class="px-4 py-2 bg-sky-600 hover:bg-sky-700 rounded text-sm">
+            Search
+        </button>
+    </form>
+
+    <a href="{% url 'hod_add_teacher' %}"
+       class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded">
+        + Add Teacher
+    </a>
+</div>
+
+<div class="bg-white/5 border border-white/10 rounded-xl p-5 overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="text-gray-400 border-b border-white/10">
+                <th class="p-2 text-left">Teacher</th>
+                <th class="p-2 text-left">NFC UID</th>
+                <th class="p-2 text-left">Classes</th>
+                <th class="p-2 text-left">Subjects</th>
+                <th class="p-2 text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in teachers %}
+            <tr class="border-b border-white/5">
+                <td class="p-2 align-top">
+                    <div class="font-semibold">
+                        {{ t.user.username }} — {{ t.user.get_full_name|default:"(no name)" }}
+                    </div>
+                    <div class="text-xs text-gray-400">
+                        {{ t.user.email|default:"no email" }}
+                    </div>
+                </td>
+
+                <td class="p-2 align-top">
+                    {{ t.nfc_uid|default:"—" }}
+                </td>
+
+                <td class="p-2 align-top">
+                    {% if t.classes.all %}
+                        <div class="flex flex-wrap gap-1">
+                            {% for c in t.classes.all %}
+                                <span class="text-xs bg-white/10 px-2 py-1 rounded">
+                                    {{ c.name }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <span class="text-xs text-gray-400">No classes</span>
+                    {% endif %}
+                </td>
+
+                <td class="p-2 align-top">
+                    {% if t.subjects.all %}
+                        <div class="flex flex-wrap gap-1">
+                            {% for s in t.subjects.all %}
+                                <span class="text-xs bg-white/10 px-2 py-1 rounded">
+                                    {{ s.code }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <span class="text-xs text-gray-400">No subjects</span>
+                    {% endif %}
+                </td>
+
+                <td class="p-2 align-top text-right whitespace-nowrap">
+                    <a href="{% url 'hod_edit_teacher' t.id %}"
+                       class="px-3 py-1 bg-sky-600 hover:bg-sky-700 rounded text-xs">
+                        Edit
+                    </a>
+                    <a href="{% url 'hod_delete_teacher' t.id %}"
+                       class="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-xs"
+                       onclick="return confirm('Delete this teacher profile?')">
+                        Delete
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center py-4 text-gray-400">
+                    No teachers found.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

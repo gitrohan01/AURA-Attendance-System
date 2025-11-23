@@ -22,7 +22,6 @@
             transition: 0.15s all;
             border-radius: 8px;
         }
-
         .sidebar-link:hover {
             background: rgba(255, 255, 255, 0.08);
         }
@@ -68,14 +67,15 @@
                 <a href="{% url 'teacher_sessions' %}" class="flex items-center gap-2 p-2 sidebar-link">
                     <i class="ph ph-calendar-check"></i> Sessions
                 </a>
-                {% endif %}
+                {% endif %}  <!-- END teacher -->
 
                 <!-- ========== HOD MENU ========== -->
                 {% if user.is_hod %}
+
                 <div class="sidebar-heading">HOD</div>
 
                 <a href="{% url 'hod_dashboard' %}" class="flex items-center gap-2 p-2 sidebar-link">
-                    <i class="ph ph-books"></i> Dashboard
+                    <i class="ph ph-gauge"></i> Dashboard
                 </a>
 
                 <a href="{% url 'device_status' %}" class="flex items-center gap-2 p-2 sidebar-link">
@@ -86,12 +86,39 @@
                     <i class="ph ph-currency-rupee"></i> Fine Calculator
                 </a>
 
-                <a href="/admin/" class="flex items-center gap-2 p-2 sidebar-link">
-                    <i class="ph ph-shield-check"></i> Admin Panel
-                </a>
-                {% endif %}
+                <div class="my-2 border-t border-white/10"></div>
 
-            {% endif %}
+                <a href="{% url 'hod_manage_students' %}" class="flex items-center gap-2 p-2 sidebar-link">
+                    <i class="ph ph-student"></i> Manage Students
+                </a>
+
+                <a href="{% url 'hod_manage_teachers' %}" class="flex items-center gap-2 p-2 sidebar-link">
+                    <i class="ph ph-chalkboard-teacher"></i> Manage Teachers
+                </a>
+
+                <a href="{% url 'hod_manage_classes' %}" class="flex items-center gap-2 p-2 sidebar-link">
+                    <i class="ph ph-users-three"></i> Manage Classes
+                </a>
+
+                <a href="{% url 'hod_manage_subjects' %}" class="flex items-center gap-2 p-2 sidebar-link">
+                    <i class="ph ph-books"></i> Manage Subjects
+                </a>
+
+                <a href="{% url 'hod_manage_departments' %}" class="flex items-center gap-2 p-2 sidebar-link">
+                    <i class="ph ph-buildings"></i> Manage Departments
+                </a>
+
+                <a href="{% url 'hod_import_students' %}" class="flex items-center gap-2 p-2 sidebar-link">
+                    <i class="ph ph-upload-simple"></i> Bulk Import Students
+                </a>
+
+                <a href="{% url 'hod_analytics_page' %}" class="flex items-center gap-2 p-2 sidebar-link">
+                    <i class="ph ph-chart-bar"></i> Analytics
+                </a>
+
+                {% endif %}  <!-- END HOD -->
+
+            {% endif %}  <!-- END user.is_authenticated -->
 
             <!-- ========== GENERAL MENU ========== -->
             <div class="sidebar-heading">General</div>
@@ -107,6 +134,7 @@
             <a href="{% url 'contact' %}" class="flex items-center gap-2 p-2 sidebar-link">
                 <i class="ph ph-phone"></i> Contact
             </a>
+
         </nav>
 
         <!-- Logout -->

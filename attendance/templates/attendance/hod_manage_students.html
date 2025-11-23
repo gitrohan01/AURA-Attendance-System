@@ -1,0 +1,53 @@
+{% extends "attendance/base.html" %}
+{% block title %}Manage Students — AURA{% endblock %}
+
+{% block content %}
+
+<h1 class="text-3xl font-bold text-sky-400 mb-6">Manage Students</h1>
+
+<div class="flex justify-between items-center mb-6">
+    <form method="get" class="flex gap-2">
+        <input type="text" name="q" placeholder="Search student..."
+               class="bg-white/10 border border-white/20 px-3 py-2 rounded text-sm w-64">
+        <button class="px-4 py-2 bg-sky-600 hover:bg-sky-700 rounded">Search</button>
+    </form>
+
+    <a href="{% url 'hod_add_student' %}" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded">
+        + Add Student
+    </a>
+</div>
+
+<div class="bg-white/5 border border-white/10 rounded-xl p-5 overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="text-gray-400 border-b border-white/10">
+                <th class="p-2 text-left">ID</th>
+                <th class="p-2 text-left">Name</th>
+                <th class="p-2 text-left">Email</th>
+                <th class="p-2 text-left">Class</th>
+                <th class="p-2 text-left">UID</th>
+                <th class="p-2 text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in students %}
+            <tr class="border-b border-white/5">
+                <td class="p-2">{{ s.student_id }}</td>
+                <td class="p-2">{{ s.first_name }} {{ s.last_name }}</td>
+                <td class="p-2">{{ s.email|default:"-" }}</td>
+                <td class="p-2">{{ s.class_group.name|default:"-" }}</td>
+                <td class="p-2">{{ s.nfc_uid|default:"-" }}</td>
+                <td class="p-2 text-right">
+                    <a href="{% url 'hod_edit_student' s.id %}" class="px-3 py-1 bg-sky-600 hover:bg-sky-700 rounded text-xs">Edit</a>
+                    <a href="{% url 'hod_delete_student' s.id %}" class="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-xs"
+                       onclick="return confirm('Delete this student?')">Delete</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center py-4 text-gray-400">No students found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
