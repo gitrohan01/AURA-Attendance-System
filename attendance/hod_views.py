@@ -7,15 +7,32 @@ from django.db import transaction
 import csv
 import io
 from django.http import JsonResponse
-from django.db.models import Count
-from django.utils.timezone import now
-from datetime import timedelta
-from .models import Attendance, Session, ClassGroup, Subject, TeacherProfile
+from django.template.loader import render_to_string
+from django.http import HttpResponse
+from weasyprint import HTML   # you already use WeasyPrint for session/subject exports
+
 
 from .models import (
-    User, Student, ClassGroup, Subject, TeacherProfile, Department
+    User, Student, ClassGroup, Subject, TeacherProfile,
+    Department, Session, Attendance
 )
 
+from django.utils.timezone import now
+from datetime import timedelta
+# Common helper: last 30 days range
+def _last_30_days():
+    today = now().date()
+    start = today - timedelta(days=30)
+    return start, today
+
+
+# Import new analytics engine
+from . import analytics as aura_analytics
+
+
+# =====================================================
+# HOD ACCESS CONTROL
+# =====================================================
 
 def is_hod(user):
     return user.is_authenticated and getattr(user, "is_hod", False)
@@ -25,9 +42,9 @@ def hod_only(view_func):
     return login_required(user_passes_test(is_hod)(view_func))
 
 
-# =========================
-# STUDENTS CRUD
-# =========================
+# =====================================================
+# STUDENT CRUD
+# =====================================================
 
 @hod_only
 def manage_students(request):
@@ -44,11 +61,11 @@ def add_student(request):
     classes = ClassGroup.objects.all().order_by("name")
 
     if request.method == "POST":
-        student_id = request.POST.get("student_id").strip()
-        first_name = request.POST.get("first_name").strip()
-        last_name = request.POST.get("last_name").strip()
-        email = request.POST.get("email").strip()
-        nfc_uid = request.POST.get("nfc_uid").strip()
+        student_id = request.POST.get("student_id", "").strip()
+        first_name = request.POST.get("first_name", "").strip()
+        last_name = request.POST.get("last_name", "").strip()
+        email = request.POST.get("email", "").strip()
+        nfc_uid = request.POST.get("nfc_uid", "").strip()
         class_id = request.POST.get("class_group")
 
         if not student_id or not first_name:
@@ -63,12 +80,11 @@ def add_student(request):
             nfc_uid=nfc_uid or None,
             class_group_id=class_id or None,
         )
+
         messages.success(request, f"Student {student_id} created.")
         return redirect("hod_manage_students")
 
-    return render(request, "attendance/hod_add_student.html", {
-        "classes": classes,
-    })
+    return render(request, "attendance/hod_add_student.html", {"classes": classes})
 
 
 @hod_only
@@ -77,24 +93,23 @@ def edit_student(request, pk):
     classes = ClassGroup.objects.all().order_by("name")
 
     if request.method == "POST":
-        student.student_id = request.POST.get("student_id").strip()
-        student.first_name = request.POST.get("first_name").strip()
-        student.last_name = request.POST.get("last_name").strip()
-        student.email = request.POST.get("email").strip() or None
-        student.nfc_uid = request.POST.get("nfc_uid").strip() or None
+        student.student_id = request.POST.get("student_id", "").strip()
+        student.first_name = request.POST.get("first_name", "").strip()
+        student.last_name = request.POST.get("last_name", "").strip()
+        student.email = request.POST.get("email", "").strip() or None
+        student.nfc_uid = request.POST.get("nfc_uid", "").strip() or None
         student.class_group_id = request.POST.get("class_group") or None
 
         if not student.student_id or not student.first_name:
             messages.error(request, "Student ID and First Name are required.")
-            return redirect("hod_edit_student", pk=student.pk)
+            return redirect("hod_edit_student", pk=pk)
 
         student.save()
         messages.success(request, f"Student {student.student_id} updated.")
         return redirect("hod_manage_students")
 
     return render(request, "attendance/hod_edit_student.html", {
-        "student": student,
-        "classes": classes,
+        "student": student, "classes": classes
     })
 
 
@@ -107,9 +122,9 @@ def delete_student(request, pk):
     return redirect("hod_manage_students")
 
 
-# =========================
-# TEACHERS CRUD
-# =========================
+# =====================================================
+# TEACHER CRUD
+# =====================================================
 
 @hod_only
 def manage_teachers(request):
@@ -148,9 +163,7 @@ def add_teacher(request):
         return redirect("hod_manage_teachers")
 
     return render(request, "attendance/hod_add_teacher.html", {
-        "users": users,
-        "classes": classes,
-        "subjects": subjects,
+        "users": users, "classes": classes, "subjects": subjects
     })
 
 
@@ -161,54 +174,46 @@ def edit_teacher(request, pk):
     subjects = Subject.objects.all().order_by("code")
 
     if request.method == "POST":
-        nfc_uid = request.POST.get("nfc_uid", "").strip()
-        class_ids = request.POST.getlist("classes")
-        subject_ids = request.POST.getlist("subjects")
-
-        profile.nfc_uid = nfc_uid or None
+        profile.nfc_uid = request.POST.get("nfc_uid", "").strip() or None
         profile.save()
-        profile.classes.set(class_ids)
-        profile.subjects.set(subject_ids)
+
+        profile.classes.set(request.POST.getlist("classes"))
+        profile.subjects.set(request.POST.getlist("subjects"))
 
         messages.success(request, f"Teacher {profile.user.username} updated.")
         return redirect("hod_manage_teachers")
 
     return render(request, "attendance/hod_edit_teacher.html", {
-        "profile": profile,
-        "classes": classes,
-        "subjects": subjects,
+        "profile": profile, "classes": classes, "subjects": subjects
     })
 
 
 @hod_only
 def delete_teacher(request, pk):
     profile = get_object_or_404(TeacherProfile, pk=pk)
-    uname = profile.user.username
+    username = profile.user.username
     profile.delete()
-    messages.success(request, f"Teacher profile for {uname} deleted.")
+    messages.success(request, f"Teacher profile for {username} deleted.")
     return redirect("hod_manage_teachers")
 
 
-# =========================
-# CLASSGROUP CRUD
-# =========================
+# =====================================================
+# CLASS CRUD
+# =====================================================
 
 @hod_only
 def manage_classes(request):
     classes = ClassGroup.objects.select_related("department").order_by("name")
-    return render(request, "attendance/hod_manage_classes.html", {
-        "classes": classes,
-    })
+    return render(request, "attendance/hod_manage_classes.html", {"classes": classes})
 
 
 @hod_only
 def add_class(request):
-    from .models import Department
     departments = Department.objects.all().order_by("name")
 
     if request.method == "POST":
-        name = request.POST.get("name").strip()
-        description = request.POST.get("description").strip()
+        name = request.POST.get("name", "").strip()
+        description = request.POST.get("description", "").strip()
         dept_id = request.POST.get("department")
 
         if not name:
@@ -220,36 +225,35 @@ def add_class(request):
             description=description or "",
             department_id=dept_id or None,
         )
+
         messages.success(request, f"Class {name} created.")
         return redirect("hod_manage_classes")
 
     return render(request, "attendance/hod_add_class.html", {
-        "departments": departments,
+        "departments": departments
     })
 
 
 @hod_only
 def edit_class(request, pk):
-    from .models import Department
     c = get_object_or_404(ClassGroup, pk=pk)
     departments = Department.objects.all().order_by("name")
 
     if request.method == "POST":
-        c.name = request.POST.get("name").strip()
-        c.description = request.POST.get("description").strip()
+        c.name = request.POST.get("name", "").strip()
+        c.description = request.POST.get("description", "").strip()
         c.department_id = request.POST.get("department") or None
 
         if not c.name:
             messages.error(request, "Class name is required.")
-            return redirect("hod_edit_class", pk=c.pk)
+            return redirect("hod_edit_class", pk=pk)
 
         c.save()
         messages.success(request, f"Class {c.name} updated.")
         return redirect("hod_manage_classes")
 
     return render(request, "attendance/hod_edit_class.html", {
-        "class_group": c,
-        "departments": departments,
+        "class_group": c, "departments": departments
     })
 
 
@@ -262,26 +266,23 @@ def delete_class(request, pk):
     return redirect("hod_manage_classes")
 
 
-# =========================
+# =====================================================
 # SUBJECT CRUD
-# =========================
+# =====================================================
 
 @hod_only
 def manage_subjects(request):
     subjects = Subject.objects.select_related("department").order_by("code")
-    return render(request, "attendance/hod_manage_subjects.html", {
-        "subjects": subjects,
-    })
+    return render(request, "attendance/hod_manage_subjects.html", {"subjects": subjects})
 
 
 @hod_only
 def add_subject(request):
-    from .models import Department
     departments = Department.objects.all().order_by("name")
 
     if request.method == "POST":
-        code = request.POST.get("code").strip()
-        name = request.POST.get("name").strip()
+        code = request.POST.get("code", "").strip()
+        name = request.POST.get("name", "").strip()
         dept_id = request.POST.get("department")
 
         if not code or not name:
@@ -291,60 +292,55 @@ def add_subject(request):
         Subject.objects.create(
             code=code,
             name=name,
-            department_id=dept_id or None,
+            department_id=dept_id or None
         )
+
         messages.success(request, f"Subject {code} created.")
         return redirect("hod_manage_subjects")
 
     return render(request, "attendance/hod_add_subject.html", {
-        "departments": departments,
+        "departments": departments
     })
 
 
 @hod_only
 def edit_subject(request, pk):
-    from .models import Department
     subject = get_object_or_404(Subject, pk=pk)
     departments = Department.objects.all().order_by("name")
 
-    if request.method == "POST__":
-        subject.code = request.POST.get("code").strip()
-        subject.name = request.POST.get("name").strip()
+    if request.method == "POST":
+        subject.code = request.POST.get("code", "").strip()
+        subject.name = request.POST.get("name", "").strip()
         subject.department_id = request.POST.get("department") or None
 
         if not subject.code or not subject.name:
             messages.error(request, "Subject code and name are required.")
-            return redirect("hod_edit_subject", pk=subject.pk)
+            return redirect("hod_edit_subject", pk=pk)
 
         subject.save()
         messages.success(request, f"Subject {subject.code} updated.")
         return redirect("hod_manage_subjects")
 
     return render(request, "attendance/hod_edit_subject.html", {
-        "subject": subject,
-        "departments": departments,
+        "subject": subject, "departments": departments
     })
 
 
 @hod_only
 def delete_subject(request, pk):
     subject = get_object_or_404(Subject, pk=pk)
-    code = subject.code
+    name = subject.code
     subject.delete()
-    messages.success(request, f"Subject {code} deleted.")
+    messages.success(request, f"Subject {name} deleted.")
     return redirect("hod_manage_subjects")
 
 
-# =========================
-# BULK STUDENT CSV IMPORT
-# =========================
+# =====================================================
+# BULK IMPORT STUDENTS
+# =====================================================
 
 @hod_only
 def import_students(request):
-    """
-    CSV columns:
-    student_id,first_name,last_name,email,nfc_uid,class_group_name
-    """
     classes = ClassGroup.objects.all().order_by("name")
 
     if request.method == "POST":
@@ -362,6 +358,7 @@ def import_students(request):
 
         created = 0
         updated = 0
+
         for row in reader:
             sid = row.get("student_id", "").strip()
             if not sid:
@@ -379,48 +376,43 @@ def import_students(request):
             }
 
             obj, is_created = Student.objects.update_or_create(
-                student_id=sid,
-                defaults=defaults
+                student_id=sid, defaults=defaults
             )
-            created += is_created
-            updated += (not is_created)
+
+            if is_created:
+                created += 1
+            else:
+                updated += 1
 
         messages.success(request, f"Import complete: Created {created}, Updated {updated}")
         return redirect("hod_manage_students")
 
-    return render(request, "attendance/hod_import_students.html", {
-        "classes": classes,
-    })
+    return render(request, "attendance/hod_import_students.html", {"classes": classes})
 
 
-# =========================
-# DEPARTMENTS CRUD
-# =========================
+# =====================================================
+# DEPARTMENT CRUD
+# =====================================================
 
 @hod_only
 def manage_departments(request):
     departments = Department.objects.all().order_by("name")
     return render(request, "attendance/hod_manage_departments.html", {
-        "departments": departments,
+        "departments": departments
     })
 
 
 @hod_only
 def add_department(request):
-
     if request.method == "POST":
-        name = request.POST.get("name").strip()
-        code = request.POST.get("code").strip()
+        name = request.POST.get("name", "").strip()
+        code = request.POST.get("code", "").strip()
 
         if not name:
             messages.error(request, "Department name is required.")
             return redirect("hod_add_department")
 
-        Department.objects.create(
-            name=name,
-            code=code or None
-        )
-
+        Department.objects.create(name=name, code=code or None)
         messages.success(request, f"Department '{name}' created.")
         return redirect("hod_manage_departments")
 
@@ -432,20 +424,18 @@ def edit_department(request, pk):
     dept = get_object_or_404(Department, pk=pk)
 
     if request.method == "POST":
-        dept.name = request.POST.get("name").strip()
-        dept.code = request.POST.get("code").strip() or None
+        dept.name = request.POST.get("name", "").strip()
+        dept.code = request.POST.get("code", "").strip() or None
 
         if not dept.name:
             messages.error(request, "Department name is required.")
-            return redirect("hod_edit_department", pk=dept.pk)
+            return redirect("hod_edit_department", pk=pk)
 
         dept.save()
         messages.success(request, f"Department '{dept.name}' updated.")
         return redirect("hod_manage_departments")
 
-    return render(request, "attendance/hod_edit_department.html", {
-        "department": dept
-    })
+    return render(request, "attendance/hod_edit_department.html", {"department": dept})
 
 
 @hod_only
@@ -457,109 +447,276 @@ def delete_department(request, pk):
     return redirect("hod_manage_departments")
 
 
+# =====================================================
+# ANALYTICS WRAPPERS (USE analytics.py ENGINE)
+# =====================================================
+
 @hod_only
 def analytics_weekly(request):
-    last_7 = now() - timedelta(days=7)
-
-    classes = ClassGroup.objects.all()
-    labels, values = [], []
-
-    for cls in classes:
-        total_sessions = Session.objects.filter(
-            class_group=cls, 
-            start_time__gte=last_7
-        ).count()
-
-        total_present = Attendance.objects.filter(
-            session__class_group=cls,
-            session__start_time__gte=last_7,
-            present=True
-        ).count()
-
-        percentage = round((total_present / total_sessions) * 100, 2) if total_sessions else 0
-
-        labels.append(cls.name)
-        values.append(percentage)
-
-    return JsonResponse({"labels": labels, "values": values})
-
+    start_dt, end_dt, _ = aura_analytics.get_date_range_from_request(request)
+    data = aura_analytics.weekly_class_overview(start_dt, end_dt)
+    return JsonResponse(data)
 
 @hod_only
 def analytics_monthly(request):
-    last_30 = now() - timedelta(days=30)
-
-    data = (
-        Attendance.objects.filter(timestamp__gte=last_30)
-        .extra({"day": "date(timestamp)"})
-        .values("day")
-        .annotate(count=Count("id"))
-        .order_by("day")
-    )
-
-    labels = [str(x["day"]) for x in data]
-    values = [x["count"] for x in data]
-
-    return JsonResponse({"labels": labels, "values": values})
-
+    start_dt, end_dt, _ = aura_analytics.get_date_range_from_request(request)
+    data = aura_analytics.monthly_trend(start_dt, end_dt)
+    return JsonResponse(data)
 
 @hod_only
 def analytics_classwise(request):
-    classes = ClassGroup.objects.all()
-    labels, values = [], []
-
-    for cls in classes:
-        total = Attendance.objects.filter(session__class_group=cls).count()
-        labels.append(cls.name)
-        values.append(total)
-
-    return JsonResponse({"labels": labels, "values": values})
-
+    start_dt, end_dt, _ = aura_analytics.get_date_range_from_request(request)
+    data = aura_analytics.classwise_distribution(start_dt, end_dt)
+    return JsonResponse(data)
 
 @hod_only
 def analytics_subject_heatmap(request):
-    subjects = Subject.objects.all()
-
-    labels, present_list, absent_list = [], [], []
-
-    for s in subjects:
-        present = Attendance.objects.filter(session__subject=s, present=True).count()
-        absent = Attendance.objects.filter(session__subject=s, present=False).count()
-
-        labels.append(s.code)
-        present_list.append(present)
-        absent_list.append(absent)
-
-    return JsonResponse({
-        "labels": labels,
-        "present": present_list,
-        "absent": absent_list
-    })
+    start_dt, end_dt, _ = aura_analytics.get_date_range_from_request(request)
+    data = aura_analytics.subject_heatmap_data(start_dt, end_dt)
+    return JsonResponse(data)
 
 @hod_only
 def analytics_teacher_activity(request):
-    teachers = TeacherProfile.objects.select_related("user")
-
-    labels, values = [], []
-
-    for t in teachers:
-        count = Session.objects.filter(teacher=t.user).count()
-        labels.append(t.user.get_full_name() or t.user.username)
-        values.append(count)
-
-    return JsonResponse({"labels": labels, "values": values})
-
+    start_dt, end_dt, _ = aura_analytics.get_date_range_from_request(request)
+    data = aura_analytics.teacher_activity_data(start_dt, end_dt)
+    return JsonResponse(data)
 
 @hod_only
 def analytics_absence_distribution(request):
-    total_present = Attendance.objects.filter(present=True).count()
-    total_absent = Attendance.objects.filter(present=False).count()
+    start_dt, end_dt, _ = aura_analytics.get_date_range_from_request(request)
+    data = aura_analytics.absence_distribution_data(start_dt, end_dt)
+    return JsonResponse(data)
 
-    return JsonResponse({
-        "labels": ["Present", "Absent"],
-        "values": [total_present, total_absent]
-    })
-
+# =====================================================
+# ANALYTICS PAGE
+# =====================================================
 
 @hod_only
 def hod_analytics_page(request):
     return render(request, "attendance/hod_analytics.html")
+
+# =====================================================
+# HOD PDF REPORTS
+# 1) Student summary
+# 2) Class summary
+# 3) Teacher performance
+# 5) Overall HOD overview (last 30 days)
+# =====================================================
+
+@hod_only
+def hod_student_report_pdf(request, student_id):
+    """
+    Per-student summary: total present/absent, percentage, last 30/90-day stats.
+    """
+    start_30, end_30 = _last_30_days()
+    start_90 = end_30 - timedelta(days=90)
+
+    student = get_object_or_404(Student, student_id=student_id)
+
+    # All attendance
+    qs_all = Attendance.objects.filter(student=student).select_related(
+        "session", "session__class_group", "session__subject"
+    )
+
+    total_present = qs_all.filter(present=True).count()
+    total_absent = qs_all.filter(present=False).count()
+    total = total_present + total_absent
+    percentage_all = round((total_present / total) * 100, 2) if total else 0
+
+    # Last 30 days
+    qs_30 = qs_all.filter(session__start_time__date__range=[start_30, end_30])
+    p30 = qs_30.filter(present=True).count()
+    a30 = qs_30.filter(present=False).count()
+    t30 = p30 + a30
+    perc30 = round((p30 / t30) * 100, 2) if t30 else 0
+
+    # Last 90 days
+    qs_90 = qs_all.filter(session__start_time__date__range=[start_90, end_30])
+    p90 = qs_90.filter(present=True).count()
+    a90 = qs_90.filter(present=False).count()
+    t90 = p90 + a90
+    perc90 = round((p90 / t90) * 100, 2) if t90 else 0
+
+    context = {
+        "student": student,
+        "class_group": student.class_group,
+        "department": student.class_group.department if student.class_group else None,
+        "report_date": now(),
+        "total_present": total_present,
+        "total_absent": total_absent,
+        "percentage_all": percentage_all,
+        "range_30": {"start": start_30, "end": end_30, "present": p30, "absent": a30, "percentage": perc30},
+        "range_90": {"start": start_90, "end": end_30, "present": p90, "absent": a90, "percentage": perc90},
+    }
+
+    html_string = render_to_string("attendance/hod_report_student.html", context)
+    html = HTML(string=html_string, base_url=request.build_absolute_uri("/"))
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="student_{student.student_id}_report.pdf"'
+    html.write_pdf(response)
+    return response
+
+
+@hod_only
+def hod_class_report_pdf(request, class_id):
+    """
+    Class summary: each student's present/absent/percentage (all-time + last 30 days).
+    """
+    start_30, end_30 = _last_30_days()
+    class_group = get_object_or_404(ClassGroup, pk=class_id)
+
+    students = Student.objects.filter(class_group=class_group).order_by("student_id")
+    rows = []
+
+    for s in students:
+        qs = Attendance.objects.filter(student=s).select_related("session")
+        total_present = qs.filter(present=True).count()
+        total_absent = qs.filter(present=False).count()
+        total = total_present + total_absent
+        perc = round((total_present / total) * 100, 2) if total else 0
+
+        qs30 = qs.filter(session__start_time__date__range=[start_30, end_30])
+        p30 = qs30.filter(present=True).count()
+        a30 = qs30.filter(present=False).count()
+        t30 = p30 + a30
+        perc30 = round((p30 / t30) * 100, 2) if t30 else 0
+
+        rows.append({
+            "student": s,
+            "present": total_present,
+            "absent": total_absent,
+            "percentage": perc,
+            "present_30": p30,
+            "absent_30": a30,
+            "percentage_30": perc30,
+        })
+
+    # basic class-level stats
+    all_att = Attendance.objects.filter(session__class_group=class_group)
+    class_present = all_att.filter(present=True).count()
+    class_total = all_att.count()
+    class_percentage = round((class_present / class_total) * 100, 2) if class_total else 0
+
+    context = {
+        "class_group": class_group,
+        "department": class_group.department,
+        "report_date": now(),
+        "rows": rows,
+        "class_present": class_present,
+        "class_total": class_total,
+        "class_percentage": class_percentage,
+    }
+
+    html_string = render_to_string("attendance/hod_report_class.html", context)
+    html = HTML(string=html_string, base_url=request.build_absolute_uri("/"))
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="class_{class_group.name}_report.pdf"'
+    html.write_pdf(response)
+    return response
+
+
+@hod_only
+def hod_teacher_report_pdf(request, teacher_id):
+    """
+    Teacher performance: sessions in last 7/30/90 days + average attendance in their sessions.
+    """
+    teacher_user = get_object_or_404(User, pk=teacher_id)
+    teacher_profile = get_object_or_404(TeacherProfile, user=teacher_user)
+
+    today = now().date()
+    start_7 = today - timedelta(days=7)
+    start_30 = today - timedelta(days=30)
+    start_90 = today - timedelta(days=90)
+
+    def session_count_between(start_date):
+        return Session.objects.filter(
+            teacher=teacher_user,
+            start_time__date__range=[start_date, today]
+        ).count()
+
+    sessions_7 = session_count_between(start_7)
+    sessions_30 = session_count_between(start_30)
+    sessions_90 = session_count_between(start_90)
+
+    # overall attendance in this teacher's sessions
+    teacher_sessions = Session.objects.filter(teacher=teacher_user)
+    att_qs = Attendance.objects.filter(session__in=teacher_sessions)
+    present = att_qs.filter(present=True).count()
+    total = att_qs.count()
+    avg_attendance = round((present / total) * 100, 2) if total else 0
+
+    # approximate bunk percentage (absent / total)
+    bunk_percentage = round(((total - present) / total) * 100, 2) if total else 0
+
+    context = {
+        "teacher": teacher_user,
+        "profile": teacher_profile,
+        "subjects": teacher_profile.subjects.all(),
+        "classes": teacher_profile.classes.all(),
+        "report_date": now(),
+        "sessions_7": sessions_7,
+        "sessions_30": sessions_30,
+        "sessions_90": sessions_90,
+        "avg_attendance": avg_attendance,
+        "bunk_percentage": bunk_percentage,
+    }
+
+    html_string = render_to_string("attendance/hod_report_teacher.html", context)
+    html = HTML(string=html_string, base_url=request.build_absolute_uri("/"))
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="teacher_{teacher_user.username}_report.pdf"'
+    html.write_pdf(response)
+    return response
+
+
+@hod_only
+def hod_overview_report_pdf(request):
+    """
+    Overall HOD dashboard-style summary for last 30 days.
+    """
+    start_30, end_30 = _last_30_days()
+
+    # total sessions & attendance last 30 days
+    sessions = Session.objects.filter(start_time__date__range=[start_30, end_30])
+    attendance = Attendance.objects.filter(session__in=sessions)
+    present = attendance.filter(present=True).count()
+    total = attendance.count()
+    avg_attendance = round((present / total) * 100, 2) if total else 0
+
+    # class-wise averages
+    class_rows = []
+    for cls in ClassGroup.objects.all().order_by("name"):
+        cls_sessions = sessions.filter(class_group=cls)
+        cls_att = attendance.filter(session__class_group=cls)
+        p = cls_att.filter(present=True).count()
+        t = cls_att.count()
+        perc = round((p / t) * 100, 2) if t else 0
+        class_rows.append({"class": cls, "sessions": cls_sessions.count(), "percentage": perc})
+
+    # teacher-wise session counts (last 30 days)
+    teacher_rows = []
+    for tp in TeacherProfile.objects.select_related("user").all():
+        t_sessions = sessions.filter(teacher=tp.user).count()
+        teacher_rows.append({"teacher": tp.user, "sessions": t_sessions})
+
+    context = {
+        "report_date": now(),
+        "start_30": start_30,
+        "end_30": end_30,
+        "total_sessions": sessions.count(),
+        "total_attendance_rows": total,
+        "avg_attendance": avg_attendance,
+        "class_rows": class_rows,
+        "teacher_rows": teacher_rows,
+    }
+
+    html_string = render_to_string("attendance/hod_report_overview.html", context)
+    html = HTML(string=html_string, base_url=request.build_absolute_uri("/"))
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = 'inline; filename="hod_overview_last30_report.pdf"'
+    html.write_pdf(response)
+    return response

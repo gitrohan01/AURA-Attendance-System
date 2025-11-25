@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HOD Overview Report</title>
+<style>
+  body { font-family:"Inter",sans-serif; color:#222; margin:0; padding:20px; }
+  .header { border-bottom:2px solid #444; padding-bottom:10px; margin-bottom:20px; }
+  h1 { margin:0; font-size:24px; text-transform:uppercase; }
+  .meta-box { background:#f5f5f5; padding:12px; border:1px solid #ddd; border-radius:6px; margin-bottom:20px; font-size:14px; }
+  table { width:100%; border-collapse:collapse; margin-top:10px; font-size:12px; }
+  th, td { border:1px solid #ccc; padding:5px 6px; }
+  th { background:#e8eaf6; }
+  .section-title { margin-top:18px; font-size:16px; font-weight:600; }
+  .signature-area { margin-top:40px; font-size:14px; }
+  .footer { margin-top:30px; font-size:11px; text-align:right; border-top:1px solid #ccc; padding-top:8px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>HOD Overview Report</h1>
+  <div style="font-size:13px;">Summary of last 30 days</div>
+</div>
+
+<div class="meta-box">
+  <strong>Range:</strong> {{ start_30 }} → {{ end_30 }}<br>
+  <strong>Total Sessions:</strong> {{ total_sessions }}<br>
+  <strong>Total Attendance Rows:</strong> {{ total_attendance_rows }}<br>
+  <strong>Average Attendance:</strong> {{ avg_attendance }}%<br>
+  <strong>Report Generated:</strong> {{ report_date }}
+</div>
+
+<h3 class="section-title">Class-wise Overview</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Class</th>
+      <th>Sessions (30d)</th>
+      <th>Average Attendance %</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in class_rows %}
+    <tr>
+      <td>{{ row.class.name }}</td>
+      <td>{{ row.sessions }}</td>
+      <td>{{ row.percentage }}%</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h3 class="section-title">Teacher Activity (Last 30 Days)</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Teacher</th>
+      <th>Sessions Conducted</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in teacher_rows %}
+    <tr>
+      <td>{{ row.teacher.get_full_name|default:row.teacher.username }}</td>
+      <td>{{ row.sessions }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="signature-area">
+  <strong>HOD Signature: _____________________________________________</strong><br>
+  <span>Date: ____________________</span>
+</div>
+
+<div class="footer">
+  AURA • HOD Overview (Last 30 Days) • {{ report_date }}
+</div>
+
+</body>
+</html>

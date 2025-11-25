@@ -6,6 +6,8 @@ from . import views
 from . import hod_views
 
 
+
+
 # ----- Public Pages -----
 def index(request): return render(request, 'attendance/index.html')
 def about(request): return render(request, 'attendance/about.html')
@@ -154,7 +156,6 @@ path("hod/departments/edit/<int:pk>/", hod_views.edit_department, name="hod_edit
 path("hod/departments/delete/<int:pk>/", hod_views.delete_department, name="hod_delete_department"),
 
 
-
 # -----------------------------
 # HOD Analytics Endpoints (JSON)
 # -----------------------------
@@ -165,9 +166,16 @@ path("hod/analytics/subject_heatmap/", hod_views.analytics_subject_heatmap, name
 path("hod/analytics/teacher_activity/", hod_views.analytics_teacher_activity, name="hod_analytics_teacher_activity"),
 path("hod/analytics/absence_distribution/", hod_views.analytics_absence_distribution, name="hod_analytics_absence_distribution"),
 
-
 # HOD Analytics Page
 path("hod/analytics/", hod_views.hod_analytics_page, name="hod_analytics_page"),
+
+    # -----------------------------
+    # HOD PDF REPORTS
+    # -----------------------------
+    path("hod/report/student/<str:student_id>/pdf/", hod_views.hod_student_report_pdf, name="hod_student_report_pdf"),
+    path("hod/report/class/<int:class_id>/pdf/", hod_views.hod_class_report_pdf, name="hod_class_report_pdf"),
+    path("hod/report/teacher/<int:teacher_id>/pdf/", hod_views.hod_teacher_report_pdf, name="hod_teacher_report_pdf"),
+    path("hod/report/overview/pdf/", hod_views.hod_overview_report_pdf, name="hod_overview_report_pdf"),
 
 
 ]

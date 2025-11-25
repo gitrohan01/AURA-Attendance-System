@@ -81,6 +81,37 @@
       {% endfor %}
     </div>
   </div>
+<!-- STUDENTS SECTION WITH DOWNLOAD BUTTON -->
+<div class="lg:col-span-1 bg-white/5 border border-white/10 rounded-xl p-5 mt-6">
+    <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xl font-semibold">Students</h2>
+        <span class="text-xs text-gray-400">
+            Total: {{ total_students }}
+        </span>
+    </div>
+
+    <div class="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+        {% for student in students %}
+        <div class="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+            <div>
+                <div class="font-semibold">
+                    {{ student.first_name }} {{ student.last_name }}
+                </div>
+                <div class="text-xs text-gray-400">
+                    ID: {{ student.student_id }}
+                </div>
+            </div>
+
+            <a href="{% url 'hod_student_report_pdf' student.student_id %}"
+               class="px-3 py-1 bg-sky-600 text-white rounded-lg hover:bg-sky-700 text-sm">
+               Download Report
+            </a>
+        </div>
+        {% empty %}
+        <p class="text-gray-400 text-sm">No students found.</p>
+        {% endfor %}
+    </div>
+</div>
 
   <!-- Right: Department analytics chart -->
   <div class="lg:col-span-2 bg-white/5 border border-white/10 rounded-xl p-5">
