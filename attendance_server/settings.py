@@ -33,7 +33,12 @@ ALLOWED_HOSTS = [
     '.ngrok-free.dev',
     'rdxaura.co.in',
     '.rdxaura.co.in',
+
+    # ADD THESE:
+    'aura-attendance-system.onrender.com',
+    '.onrender.com',
 ]
+
 # Application definition
 
 INSTALLED_APPS = [
