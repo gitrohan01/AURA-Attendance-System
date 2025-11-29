@@ -130,12 +130,12 @@ def hod_dashboard(request):
 
     return render(request, "attendance/hod_dashboard.html", {
         "teachers": teachers,
-        "students": students,              # ✅ ADD THIS
-        "teacher_count": teachers.count(),
-        "student_count": students.count(),
-        "class_count": classes.count(),
-        "subject_count": subjects.count(),
+        "students": students,
+        "total_students": students.count(),
+        "total_classes": classes.count(),
+        "total_subjects": subjects.count(),
     })
+
 
 
 # -------------------------------------------------------------------

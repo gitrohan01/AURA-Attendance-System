@@ -4,35 +4,33 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import transaction
+from django.http import JsonResponse, HttpResponse
+from django.template.loader import render_to_string
+from django.utils.timezone import now
+
+from weasyprint import HTML
+
 import csv
 import io
-from django.http import JsonResponse
-from django.template.loader import render_to_string
-from django.http import HttpResponse
-from weasyprint import HTML   # you already use WeasyPrint for session/subject exports
-
+from datetime import timedelta
 
 from .models import (
     User, Student, ClassGroup, Subject, TeacherProfile,
     Department, Session, Attendance
 )
-
-from django.utils.timezone import now
-from datetime import timedelta
-# Common helper: last 30 days range
-def _last_30_days():
-    today = now().date()
-    start = today - timedelta(days=30)
-    return start, today
-
-
-# Import new analytics engine
 from . import analytics as aura_analytics
 
 
 # =====================================================
-# HOD ACCESS CONTROL
+# HELPERS / ACCESS CONTROL
 # =====================================================
+
+def _last_30_days():
+    """Return (start_date, end_date) for last 30 days."""
+    today = now().date()
+    start = today - timedelta(days=30)
+    return start, today
+
 
 def is_hod(user):
     return user.is_authenticated and getattr(user, "is_hod", False)
@@ -109,7 +107,8 @@ def edit_student(request, pk):
         return redirect("hod_manage_students")
 
     return render(request, "attendance/hod_edit_student.html", {
-        "student": student, "classes": classes
+        "student": student,
+        "classes": classes,
     })
 
 
@@ -163,7 +162,9 @@ def add_teacher(request):
         return redirect("hod_manage_teachers")
 
     return render(request, "attendance/hod_add_teacher.html", {
-        "users": users, "classes": classes, "subjects": subjects
+        "users": users,
+        "classes": classes,
+        "subjects": subjects,
     })
 
 
@@ -184,7 +185,9 @@ def edit_teacher(request, pk):
         return redirect("hod_manage_teachers")
 
     return render(request, "attendance/hod_edit_teacher.html", {
-        "profile": profile, "classes": classes, "subjects": subjects
+        "profile": profile,
+        "classes": classes,
+        "subjects": subjects,
     })
 
 
@@ -230,7 +233,7 @@ def add_class(request):
         return redirect("hod_manage_classes")
 
     return render(request, "attendance/hod_add_class.html", {
-        "departments": departments
+        "departments": departments,
     })
 
 
@@ -253,7 +256,8 @@ def edit_class(request, pk):
         return redirect("hod_manage_classes")
 
     return render(request, "attendance/hod_edit_class.html", {
-        "class_group": c, "departments": departments
+        "class_group": c,
+        "departments": departments,
     })
 
 
@@ -292,14 +296,14 @@ def add_subject(request):
         Subject.objects.create(
             code=code,
             name=name,
-            department_id=dept_id or None
+            department_id=dept_id or None,
         )
 
         messages.success(request, f"Subject {code} created.")
         return redirect("hod_manage_subjects")
 
     return render(request, "attendance/hod_add_subject.html", {
-        "departments": departments
+        "departments": departments,
     })
 
 
@@ -322,7 +326,8 @@ def edit_subject(request, pk):
         return redirect("hod_manage_subjects")
 
     return render(request, "attendance/hod_edit_subject.html", {
-        "subject": subject, "departments": departments
+        "subject": subject,
+        "departments": departments,
     })
 
 
@@ -376,7 +381,8 @@ def import_students(request):
             }
 
             obj, is_created = Student.objects.update_or_create(
-                student_id=sid, defaults=defaults
+                student_id=sid,
+                defaults=defaults,
             )
 
             if is_created:
@@ -398,7 +404,7 @@ def import_students(request):
 def manage_departments(request):
     departments = Department.objects.all().order_by("name")
     return render(request, "attendance/hod_manage_departments.html", {
-        "departments": departments
+        "departments": departments,
     })
 
 
@@ -446,7 +452,6 @@ def delete_department(request, pk):
     messages.success(request, f"Department '{name}' deleted.")
     return redirect("hod_manage_departments")
 
-
 # =====================================================
 # ANALYTICS WRAPPERS (USE analytics.py ENGINE)
 # =====================================================
@@ -457,11 +462,13 @@ def analytics_weekly(request):
     data = aura_analytics.weekly_class_overview(start_dt, end_dt)
     return JsonResponse(data)
 
+
 @hod_only
 def analytics_monthly(request):
     start_dt, end_dt, _ = aura_analytics.get_date_range_from_request(request)
     data = aura_analytics.monthly_trend(start_dt, end_dt)
     return JsonResponse(data)
+
 
 @hod_only
 def analytics_classwise(request):
@@ -469,11 +476,13 @@ def analytics_classwise(request):
     data = aura_analytics.classwise_distribution(start_dt, end_dt)
     return JsonResponse(data)
 
+
 @hod_only
 def analytics_subject_heatmap(request):
     start_dt, end_dt, _ = aura_analytics.get_date_range_from_request(request)
     data = aura_analytics.subject_heatmap_data(start_dt, end_dt)
     return JsonResponse(data)
+
 
 @hod_only
 def analytics_teacher_activity(request):
@@ -481,11 +490,13 @@ def analytics_teacher_activity(request):
     data = aura_analytics.teacher_activity_data(start_dt, end_dt)
     return JsonResponse(data)
 
+
 @hod_only
 def analytics_absence_distribution(request):
     start_dt, end_dt, _ = aura_analytics.get_date_range_from_request(request)
     data = aura_analytics.absence_distribution_data(start_dt, end_dt)
     return JsonResponse(data)
+
 
 # =====================================================
 # ANALYTICS PAGE
@@ -500,20 +511,20 @@ def hod_analytics_page(request):
 # 1) Student summary
 # 2) Class summary
 # 3) Teacher performance
-# 5) Overall HOD overview (last 30 days)
+# 4) Overall HOD overview (last 30 days)
 # =====================================================
 
 @hod_only
 def hod_student_report_pdf(request, student_id):
     """
-    Per-student summary: total present/absent, percentage, last 30/90-day stats.
+    Per-student summary: total present/absent, overall percentage,
+    plus daily breakdown for the last 30 days.
     """
     start_30, end_30 = _last_30_days()
-    start_90 = end_30 - timedelta(days=90)
 
     student = get_object_or_404(Student, student_id=student_id)
 
-    # All attendance
+    # All-time attendance
     qs_all = Attendance.objects.filter(student=student).select_related(
         "session", "session__class_group", "session__subject"
     )
@@ -521,47 +532,50 @@ def hod_student_report_pdf(request, student_id):
     total_present = qs_all.filter(present=True).count()
     total_absent = qs_all.filter(present=False).count()
     total = total_present + total_absent
-    percentage_all = round((total_present / total) * 100, 2) if total else 0
+    percentage = round((total_present / total) * 100, 2) if total else 0
 
-    # Last 30 days
+    # Last-30-days breakdown for table
     qs_30 = qs_all.filter(session__start_time__date__range=[start_30, end_30])
-    p30 = qs_30.filter(present=True).count()
-    a30 = qs_30.filter(present=False).count()
-    t30 = p30 + a30
-    perc30 = round((p30 / t30) * 100, 2) if t30 else 0
 
-    # Last 90 days
-    qs_90 = qs_all.filter(session__start_time__date__range=[start_90, end_30])
-    p90 = qs_90.filter(present=True).count()
-    a90 = qs_90.filter(present=False).count()
-    t90 = p90 + a90
-    perc90 = round((p90 / t90) * 100, 2) if t90 else 0
+    attendances = []
+    for att in qs_30.order_by("timestamp"):
+        attendances.append({
+            "date": att.timestamp.date(),
+            "present": "Yes" if att.present else "No",
+            "verified_by_face": "Yes" if att.verified_by_face else "No",
+            "timestamp": att.timestamp.strftime("%Y-%m-%d %H:%M"),
+        })
 
     context = {
         "student": student,
         "class_group": student.class_group,
         "department": student.class_group.department if student.class_group else None,
         "report_date": now(),
+
         "total_present": total_present,
         "total_absent": total_absent,
-        "percentage_all": percentage_all,
-        "range_30": {"start": start_30, "end": end_30, "present": p30, "absent": a30, "percentage": perc30},
-        "range_90": {"start": start_90, "end": end_30, "present": p90, "absent": a90, "percentage": perc90},
+        "percentage": percentage,
+
+        "attendances": attendances,
     }
 
-    html_string = render_to_string("attendance/hod_report_student.html", context)
-    html = HTML(string=html_string, base_url=request.build_absolute_uri("/"))
+    html_string = render_to_string(
+        "attendance/hod_report_student.html",
+        context,
+        request=request,   # ensures {% static %} and {{ request }} work
+    )
+    pdf = HTML(string=html_string, base_url=request.build_absolute_uri("/")).write_pdf()
 
-    response = HttpResponse(content_type="application/pdf")
+    response = HttpResponse(pdf, content_type="application/pdf")
     response["Content-Disposition"] = f'inline; filename="student_{student.student_id}_report.pdf"'
-    html.write_pdf(response)
     return response
 
 
 @hod_only
 def hod_class_report_pdf(request, class_id):
     """
-    Class summary: each student's present/absent/percentage (all-time + last 30 days).
+    Class summary: each student's present/absent/percentage
+    (all-time + last 30 days).
     """
     start_30, end_30 = _last_30_days()
     class_group = get_object_or_404(ClassGroup, pk=class_id)
@@ -570,7 +584,8 @@ def hod_class_report_pdf(request, class_id):
     rows = []
 
     for s in students:
-        qs = Attendance.objects.filter(student=s).select_related("session")
+        qs = Attendance.objects.filter(student=s)
+
         total_present = qs.filter(present=True).count()
         total_absent = qs.filter(present=False).count()
         total = total_present + total_absent
@@ -592,7 +607,6 @@ def hod_class_report_pdf(request, class_id):
             "percentage_30": perc30,
         })
 
-    # basic class-level stats
     all_att = Attendance.objects.filter(session__class_group=class_group)
     class_present = all_att.filter(present=True).count()
     class_total = all_att.count()
@@ -603,24 +617,27 @@ def hod_class_report_pdf(request, class_id):
         "department": class_group.department,
         "report_date": now(),
         "rows": rows,
-        "class_present": class_present,
         "class_total": class_total,
         "class_percentage": class_percentage,
     }
 
-    html_string = render_to_string("attendance/hod_report_class.html", context)
-    html = HTML(string=html_string, base_url=request.build_absolute_uri("/"))
+    html_string = render_to_string(
+        "attendance/hod_report_class.html",
+        context,
+        request=request,
+    )
+    pdf = HTML(string=html_string, base_url=request.build_absolute_uri("/")).write_pdf()
 
-    response = HttpResponse(content_type="application/pdf")
+    response = HttpResponse(pdf, content_type="application/pdf")
     response["Content-Disposition"] = f'inline; filename="class_{class_group.name}_report.pdf"'
-    html.write_pdf(response)
     return response
 
 
 @hod_only
 def hod_teacher_report_pdf(request, teacher_id):
     """
-    Teacher performance: sessions in last 7/30/90 days + average attendance in their sessions.
+    Teacher performance: sessions in last 7/30/90 days +
+    average attendance in their sessions and bunk percentage.
     """
     teacher_user = get_object_or_404(User, pk=teacher_id)
     teacher_profile = get_object_or_404(TeacherProfile, user=teacher_user)
@@ -633,21 +650,19 @@ def hod_teacher_report_pdf(request, teacher_id):
     def session_count_between(start_date):
         return Session.objects.filter(
             teacher=teacher_user,
-            start_time__date__range=[start_date, today]
+            start_time__date__range=[start_date, today],
         ).count()
 
     sessions_7 = session_count_between(start_7)
     sessions_30 = session_count_between(start_30)
     sessions_90 = session_count_between(start_90)
 
-    # overall attendance in this teacher's sessions
     teacher_sessions = Session.objects.filter(teacher=teacher_user)
     att_qs = Attendance.objects.filter(session__in=teacher_sessions)
+
     present = att_qs.filter(present=True).count()
     total = att_qs.count()
     avg_attendance = round((present / total) * 100, 2) if total else 0
-
-    # approximate bunk percentage (absent / total)
     bunk_percentage = round(((total - present) / total) * 100, 2) if total else 0
 
     context = {
@@ -663,12 +678,15 @@ def hod_teacher_report_pdf(request, teacher_id):
         "bunk_percentage": bunk_percentage,
     }
 
-    html_string = render_to_string("attendance/hod_report_teacher.html", context)
-    html = HTML(string=html_string, base_url=request.build_absolute_uri("/"))
+    html_string = render_to_string(
+        "attendance/hod_report_teacher.html",
+        context,
+        request=request,
+    )
+    pdf = HTML(string=html_string, base_url=request.build_absolute_uri("/")).write_pdf()
 
-    response = HttpResponse(content_type="application/pdf")
+    response = HttpResponse(pdf, content_type="application/pdf")
     response["Content-Disposition"] = f'inline; filename="teacher_{teacher_user.username}_report.pdf"'
-    html.write_pdf(response)
     return response
 
 
@@ -679,28 +697,35 @@ def hod_overview_report_pdf(request):
     """
     start_30, end_30 = _last_30_days()
 
-    # total sessions & attendance last 30 days
     sessions = Session.objects.filter(start_time__date__range=[start_30, end_30])
     attendance = Attendance.objects.filter(session__in=sessions)
+
     present = attendance.filter(present=True).count()
     total = attendance.count()
     avg_attendance = round((present / total) * 100, 2) if total else 0
 
-    # class-wise averages
     class_rows = []
     for cls in ClassGroup.objects.all().order_by("name"):
         cls_sessions = sessions.filter(class_group=cls)
         cls_att = attendance.filter(session__class_group=cls)
+
         p = cls_att.filter(present=True).count()
         t = cls_att.count()
         perc = round((p / t) * 100, 2) if t else 0
-        class_rows.append({"class": cls, "sessions": cls_sessions.count(), "percentage": perc})
 
-    # teacher-wise session counts (last 30 days)
+        class_rows.append({
+            "class": cls,
+            "sessions": cls_sessions.count(),
+            "percentage": perc,
+        })
+
     teacher_rows = []
     for tp in TeacherProfile.objects.select_related("user").all():
         t_sessions = sessions.filter(teacher=tp.user).count()
-        teacher_rows.append({"teacher": tp.user, "sessions": t_sessions})
+        teacher_rows.append({
+            "teacher": tp.user,
+            "sessions": t_sessions,
+        })
 
     context = {
         "report_date": now(),
@@ -713,10 +738,13 @@ def hod_overview_report_pdf(request):
         "teacher_rows": teacher_rows,
     }
 
-    html_string = render_to_string("attendance/hod_report_overview.html", context)
-    html = HTML(string=html_string, base_url=request.build_absolute_uri("/"))
+    html_string = render_to_string(
+        "attendance/hod_report_overview.html",
+        context,
+        request=request,
+    )
+    pdf = HTML(string=html_string, base_url=request.build_absolute_uri("/")).write_pdf()
 
-    response = HttpResponse(content_type="application/pdf")
+    response = HttpResponse(pdf, content_type="application/pdf")
     response["Content-Disposition"] = 'inline; filename="hod_overview_last30_report.pdf"'
-    html.write_pdf(response)
     return response

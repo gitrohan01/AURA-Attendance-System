@@ -3,168 +3,154 @@
 
 {% block content %}
 
+<!-- ====================== HEADER ======================= -->
 <div class="flex justify-between items-center mb-6">
     <h1 class="text-3xl font-bold text-sky-400">HOD Dashboard</h1>
 
-    <a href="{% url 'hod_analytics_page' %}" 
-       class="px-4 py-2 bg-sky-600 hover:bg-sky-700 rounded-lg text-sm">
-        📊 View Full Analytics
-    </a>
+    <!-- Downloadables Dropdown -->
+    <div class="relative inline-block text-left">
+        <button id="downloadMenuBtn"
+            class="px-4 py-2 bg-sky-600 hover:bg-sky-700 rounded-lg text-sm">
+            ⬇️ Download Reports
+        </button>
+
+        <div id="downloadMenu"
+            class="hidden absolute right-0 mt-2 w-64 bg-white/10 backdrop-blur border border-white/20 rounded-lg shadow-lg z-50">
+
+            <a href="{% url 'hod_manage_students' %}"
+                class="block px-4 py-2 text-sm hover:bg-white/20">👨‍🎓 Student Report (select student)</a>
+
+            <a href="{% url 'hod_manage_classes' %}"
+                class="block px-4 py-2 text-sm hover:bg-white/20">🏫 Class Report (select class)</a>
+
+            <a href="{% url 'hod_manage_teachers' %}"
+                class="block px-4 py-2 text-sm hover:bg-white/20">👨‍🏫 Teacher Report (select teacher)</a>
+
+            <a href="{% url 'hod_overview_report_pdf' %}"
+                class="block px-4 py-2 text-sm hover:bg-white/20">📘 30-Day Overview Report (PDF)</a>
+        </div>
+    </div>
 </div>
 
+<script>
+document.getElementById("downloadMenuBtn").addEventListener("click", () => {
+    document.getElementById("downloadMenu").classList.toggle("hidden");
+});
+</script>
 
-<!-- ===== Top Overview Cards ===== -->
+<!-- ====================== TOP METRIC CARDS ======================= -->
 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
 
-  <div class="bg-white/5 border border-white/10 rounded-xl p-4">
-    <div class="text-xs uppercase tracking-wide text-gray-400 mb-1">Teachers</div>
-    <div class="text-2xl font-bold">
-      {{ teachers|length }}
+    <!-- Teachers -->
+    <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+        <div class="text-xs uppercase tracking-wide text-gray-400 mb-1">Teachers</div>
+        <div class="text-2xl font-bold">{{ teachers|length }}</div>
     </div>
-  </div>
 
-  <div class="bg-white/5 border border-white/10 rounded-xl p-4">
-    <div class="text-xs uppercase tracking-wide text-gray-400 mb-1">Students</div>
-    <div class="text-2xl font-bold">
-      {{ total_students }}
+    <!-- Students -->
+    <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+        <div class="text-xs uppercase tracking-wide text-gray-400 mb-1">Students</div>
+        <div class="text-2xl font-bold">{{ total_students }}</div>
     </div>
-  </div>
 
-  <div class="bg-white/5 border border-white/10 rounded-xl p-4">
-    <div class="text-xs uppercase tracking-wide text-gray-400 mb-1">Classes</div>
-    <div class="text-2xl font-bold">
-      {{ total_classes }}
+    <!-- Classes -->
+    <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+        <div class="text-xs uppercase tracking-wide text-gray-400 mb-1">Classes</div>
+        <div class="text-2xl font-bold">{{ total_classes }}</div>
     </div>
-  </div>
 
-  <div class="bg-white/5 border border-white/10 rounded-xl p-4">
-    <div class="text-xs uppercase tracking-wide text-gray-400 mb-1">Subjects</div>
-    <div class="text-2xl font-bold">
-      {{ total_subjects }}
+    <!-- Subjects -->
+    <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+        <div class="text-xs uppercase tracking-wide text-gray-400 mb-1">Subjects</div>
+        <div class="text-2xl font-bold">{{ total_subjects }}</div>
     </div>
-  </div>
 
 </div>
 
-<!-- ===== Main Grid: Teachers + Department Analytics ===== -->
+<!-- ====================== MAIN LAYOUT ======================= -->
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-  <!-- Left: Teacher list -->
-  <div class="lg:col-span-1 bg-white/5 border border-white/10 rounded-xl p-5">
-    <div class="flex items-center justify-between mb-3">
-      <h2 class="text-xl font-semibold">Teachers</h2>
-      <span class="text-xs text-gray-400">
-        Total: {{ teachers|length }}
-      </span>
-    </div>
-
-    <div class="space-y-2 max-h-[420px] overflow-y-auto pr-1">
-      {% for t in teachers %}
-        <div class="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
-          <div>
-            <div class="font-semibold">
-              {{ t.get_full_name|default:t.username }}
-            </div>
-            <div class="text-xs text-gray-400">
-              Username: {{ t.username }}
-            </div>
-          </div>
-          <div>
-            <a href="{% url 'hod_teacher_detail' t.id %}"
-               class="px-3 py-1 text-xs bg-sky-600 hover:bg-sky-700 rounded-md">
-              View
-            </a>
-          </div>
+    <!-- Teachers SECTION -->
+    <div class="lg:col-span-1 bg-white/5 border border-white/10 rounded-xl p-5">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-xl font-semibold">Teachers</h2>
+            <span class="text-xs text-gray-400">Total: {{ teachers|length }}</span>
         </div>
-      {% empty %}
-        <p class="text-gray-400 text-sm">No teachers registered.</p>
-      {% endfor %}
-    </div>
-  </div>
-<!-- STUDENTS SECTION WITH DOWNLOAD BUTTON -->
-<div class="lg:col-span-1 bg-white/5 border border-white/10 rounded-xl p-5 mt-6">
-    <div class="flex items-center justify-between mb-3">
-        <h2 class="text-xl font-semibold">Students</h2>
-        <span class="text-xs text-gray-400">
-            Total: {{ total_students }}
-        </span>
-    </div>
 
-    <div class="space-y-2 max-h-[420px] overflow-y-auto pr-1">
-        {% for student in students %}
-        <div class="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
-            <div>
-                <div class="font-semibold">
-                    {{ student.first_name }} {{ student.last_name }}
-                </div>
-                <div class="text-xs text-gray-400">
-                    ID: {{ student.student_id }}
-                </div>
-            </div>
-
-            <a href="{% url 'hod_student_report_pdf' student.student_id %}"
-               class="px-3 py-1 bg-sky-600 text-white rounded-lg hover:bg-sky-700 text-sm">
-               Download Report
-            </a>
+        <div class="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+            {% for t in teachers %}
+                {% include "attendance/components/teacher_card.html" with teacher=t %}
+            {% empty %}
+                <p class="text-gray-400 text-sm">No teachers registered.</p>
+            {% endfor %}
         </div>
-        {% empty %}
-        <p class="text-gray-400 text-sm">No students found.</p>
-        {% endfor %}
     </div>
-</div>
 
-  <!-- Right: Department analytics chart -->
-  <div class="lg:col-span-2 bg-white/5 border border-white/10 rounded-xl p-5">
-    <h2 class="text-xl font-semibold mb-2">Department Analytics (Last 30 Days)</h2>
-    <p class="text-sm text-gray-400 mb-4">
-      Average attendance per department, based on sessions and attendance records
-      from the last 30 days.
-    </p>
+    <!-- STUDENTS SECTION -->
+    <div class="lg:col-span-1 bg-white/5 border border-white/10 rounded-xl p-5">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-xl font-semibold">Students</h2>
+            <span class="text-xs text-gray-400">Total: {{ students|length }}</span>
+        </div>
 
-    <canvas id="deptChart" height="140"></canvas>
-  </div>
+        <div class="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+            {% for student in students %}
+                {% include "attendance/components/student_card.html" with student=student %}
+            {% empty %}
+                <p class="text-gray-400 text-sm">No students found.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- DEPARTMENT ANALYTICS SECTION -->
+    <div class="lg:col-span-1 bg-white/5 border border-white/10 rounded-xl p-5">
+        <h2 class="text-xl font-semibold mb-2">Department Analytics (Last 30 Days)</h2>
+        <p class="text-sm text-gray-400 mb-4">
+            Average attendance per department based on sessions in the last 30 days.
+        </p>
+
+        <canvas id="deptChart" height="140"></canvas>
+    </div>
 
 </div>
 
+<!-- ====================== CHART SCRIPT ======================= -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  // Fetch department stats for HOD chart
-  fetch("{% url 'hod_department_stats' %}")
+fetch("{% url 'hod_department_stats' %}")
     .then(r => r.json())
     .then(data => {
-      const ctx = document.getElementById('deptChart').getContext('2d');
-      new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: data.labels,
-          datasets: [{
-            label: 'Avg Attendance (%)',
-            data: data.values,
-            borderWidth: 1,
-            backgroundColor: 'rgba(56, 189, 248, 0.5)',
-            borderColor: 'rgb(56, 189, 248)'
-          }]
-        },
-        options: {
-          indexAxis: 'y',
-          responsive: true,
-          plugins: {
-            legend: { display: true },
-          },
-          scales: {
-            x: {
-              ticks: { color: '#e5e7eb' },
-              grid: { color: 'rgba(148, 163, 184, 0.2)' },
-              min: 0,
-              max: 100
+        const ctx = document.getElementById('deptChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: 'Avg Attendance (%)',
+                    data: data.values,
+                    borderWidth: 1,
+                    backgroundColor: 'rgba(56, 189, 248, 0.5)',
+                    borderColor: 'rgb(56, 189, 248)'
+                }]
             },
-            y: {
-              ticks: { color: '#e5e7eb' },
-              grid: { color: 'rgba(148, 163, 184, 0.1)' },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: {
+                        ticks: { color: '#e5e7eb' },
+                        min: 0,
+                        max: 100,
+                        grid: { color: 'rgba(148,163,184,0.2)' }
+                    },
+                    y: {
+                        ticks: { color: '#e5e7eb' },
+                        grid: { color: 'rgba(148,163,184,0.1)' }
+                    }
+                }
             }
-          }
-        }
-      });
+        });
     })
     .catch(err => console.error("Dept chart error:", err));
 </script>

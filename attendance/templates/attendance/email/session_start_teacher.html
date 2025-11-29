@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+  <body style="font-family: Arial; padding: 10px;">
+    <h3>Session Started</h3>
+
+    <p>Hi {{ teacher.get_full_name|default:teacher.username }},</p>
+
+    <p>Your session has started:</p>
+
+    <ul>
+      <li><strong>Session:</strong> {{ session_id }}</li>
+      <li><strong>Subject:</strong> {{ subject.name }} ({{ subject.code }})</li>
+      <li><strong>Class:</strong> {{ class_group.name }}</li>
+      <li><strong>Start Time:</strong> {{ start_time }}</li>
+    </ul>
+
+    <p>Students may now mark attendance.</p>
+
+    <p>— AURA Attendance System</p>
+  </body>
+</html>

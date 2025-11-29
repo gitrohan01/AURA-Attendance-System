@@ -1,0 +1,15 @@
+<div class="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+    <div>
+        <div class="font-semibold">
+            {{ teacher.get_full_name|default:teacher.username }}
+        </div>
+        <div class="text-xs text-gray-400">
+            Username: {{ teacher.username }}
+        </div>
+    </div>
+
+    <a href="{% url 'hod_teacher_detail' teacher.id %}"
+       class="px-3 py-1 text-xs bg-sky-600 hover:bg-sky-700 rounded-md">
+        View
+    </a>
+</div>

@@ -310,3 +310,66 @@ def render_redflag_email(student, class_group, percentage):
         "percentage": percentage
     })
     return subject, body
+
+
+# -------------------------------------------------------
+# NEW: EMAIL EVENT BUILDERS
+# -------------------------------------------------------
+
+def build_session_start_email(session, teacher):
+    html = render_to_string("attendance/email/session_start_teacher.html", {
+        "teacher": teacher,
+        "subject": session.subject,
+        "class_group": session.class_group,
+        "session_id": session.session_id,
+        "start_time": session.start_time.strftime("%Y-%m-%d %H:%M"),
+    })
+    return "AURA — Session Started", html
+
+
+def build_session_end_email(session):
+    html = render_to_string("attendance/email/session_end_teacher.html", {
+        "teacher": session.teacher,
+        "session_id": session.session_id,
+        "end_time": session.end_time.strftime("%Y-%m-%d %H:%M"),
+    })
+    return "AURA — Session Ended", html
+
+
+def build_teacher_upload_email(teacher, class_group):
+    html = render_to_string("attendance/email/class_upload_teacher.html", {
+        "teacher": teacher,
+        "class_group": class_group,
+        "timestamp": timezone.now().strftime("%Y-%m-%d %H:%M"),
+    })
+    return "AURA — Attendance Uploaded", html
+
+
+def build_hod_upload_email(teacher, class_group):
+    html = render_to_string("attendance/email/hod_upload_notify.html", {
+        "teacher": teacher,
+        "class_group": class_group,
+        "timestamp": timezone.now().strftime("%Y-%m-%d %H:%M"),
+    })
+    return "AURA — Teacher Submission", html
+
+
+def build_weekly_student_report(student, class_group, present, absent, total, percentage):
+    html = render_to_string("attendance/email/weekly_student_report.html", {
+        "student": student,
+        "class_group": class_group,
+        "present": present,
+        "absent": absent,
+        "total": total,
+        "percentage": percentage,
+    })
+    subject = f"AURA Weekly Attendance Report — {class_group.name}"
+    return subject, html
+
+
+def build_hod_weekly_digest(flagged):
+    html = render_to_string("attendance/email/hod_weekly_digest.html", {
+        "flagged": flagged
+    })
+    return "AURA — Weekly Red-Flag Digest", html
+

@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+  <body style="font-family: Arial; padding: 10px;">
+    <h3>Your Weekly Attendance Report</h3>
+
+    <p>Hello {{ student.first_name }},</p>
+
+    <p>Your attendance report for the class <strong>{{ class_group.name }}</strong>:</p>
+
+    <ul>
+      <li><strong>Present:</strong> {{ present }}</li>
+      <li><strong>Absent:</strong> {{ absent }}</li>
+      <li><strong>Total Sessions:</strong> {{ total }}</li>
+      <li><strong>Attendance Percentage:</strong> {{ percentage }}%</li>
+    </ul>
+
+    <p>Please maintain good attendance to avoid red-flag alerts.</p>
+
+    <p>— AURA Attendance System</p>
+  </body>
+</html>

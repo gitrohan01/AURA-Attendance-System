@@ -26,9 +26,14 @@ SECRET_KEY = 'django-insecure-_iu))wbo8fvb(&^at69s5ns#hp*fb3#3km5-(p5v(9f+f4^%%@
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
-
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'isographically-opinionated-luise.ngrok-free.dev',
+    '.ngrok-free.dev',
+    'rdxaura.co.in',
+    '.rdxaura.co.in',
+]
 # Application definition
 
 INSTALLED_APPS = [
@@ -142,3 +147,11 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = config("AURA_EMAIL_USER")
 EMAIL_HOST_PASSWORD = config("AURA_EMAIL_PASS")
 DEFAULT_FROM_EMAIL = config("AURA_DEFAULT_FROM")
+
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://isographically-opinionated-luise.ngrok-free.dev',
+    'https://*.ngrok-free.dev',
+    'https://rdxaura.co.in',
+    'https://*.rdxaura.co.in',
+]

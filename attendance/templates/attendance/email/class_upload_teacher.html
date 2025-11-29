@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <body style="font-family: Arial; padding: 10px;">
+    <h3>Attendance Upload Successful</h3>
+
+    <p>Hi {{ teacher.get_full_name|default:teacher.username }},</p>
+
+    <p>Your attendance submission for the class:</p>
+
+    <ul>
+      <li><strong>{{ class_group.name }}</strong></li>
+      <li>Uploaded at: {{ timestamp }}</li>
+    </ul>
+
+    <p>HOD has also been notified.</p>
+
+    <p>— AURA Attendance System</p>
+  </body>
+</html>

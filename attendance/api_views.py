@@ -12,12 +12,21 @@ from .serializers import (
     AttendanceSerializer, StudentSerializer, SessionSerializer
 )
 
+# Email utilities
+from attendance.utils import (
+    build_session_start_email,
+    build_session_end_email,
+    send_email_notification
+)
+
+
 # -------------------------------------------------------------------
 #   /api/students/
 # -------------------------------------------------------------------
 class StudentViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
+
 
 # -------------------------------------------------------------------
 #   /api/attendance/  (mark attendance)
@@ -56,6 +65,7 @@ def mark_attendance(request):
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=500)
 
+
 # -------------------------------------------------------------------
 #   /api/start_session/
 # -------------------------------------------------------------------
@@ -87,10 +97,18 @@ def start_session(request):
             start_time=timezone.now()
         )
 
+        # ------------------------------
+        # SEND EMAIL TO TEACHER
+        # ------------------------------
+        subject_mail, body_mail = build_session_start_email(session, teacher_profile.user)
+        if teacher_profile.user.email:
+            send_email_notification(subject_mail, body_mail, [teacher_profile.user.email])
+
         return Response({'status': 'success', 'session_id': session.session_id}, status=201)
 
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=500)
+
 
 # -------------------------------------------------------------------
 #   /api/end_session/
@@ -107,13 +125,22 @@ def end_session(request):
         session.end_time = timezone.now()
         session.save()
 
+        # ------------------------------
+        # SEND EMAIL – SESSION SUMMARY
+        # ------------------------------
+        subject_mail, body_mail = build_session_end_email(session)
+        teacher = session.teacher
+        if teacher and teacher.email:
+            send_email_notification(subject_mail, body_mail, [teacher.email])
+
         return Response({'status': 'success', 'message': 'Session ended'}, status=200)
 
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=500)
 
+
 # -------------------------------------------------------------------
-#   /api/heartbeat/
+#   /api/heartbeat/  (ESP32 ONLINE/OFFLINE CHECK)
 # -------------------------------------------------------------------
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -126,20 +153,24 @@ def device_heartbeat(request):
         "meta": {"ip":"192.168.1.21"}
     }
     """
-    data = request.data
-    device_id = data.get("device_id")
+    try:
+        data = request.data
+        device_id = data.get("device_id")
 
-    if not device_id:
-        return Response({"status":"error", "message":"device_id required"}, status=400)
+        if not device_id:
+            return Response({"status": "error", "message": "device_id required"}, status=400)
 
-    device, created = Device.objects.get_or_create(
-        device_id=device_id,
-        defaults={"name": data.get("name"), "meta": data.get("meta")}
-    )
+        device, created = Device.objects.get_or_create(
+            device_id=device_id,
+            defaults={"name": data.get("name"), "meta": data.get("meta")}
+        )
 
-    device.last_heartbeat = timezone.now()
-    device.name = data.get("name", device.name)
-    device.meta = data.get("meta", device.meta)
-    device.save()
+        device.last_heartbeat = timezone.now()
+        device.name = data.get("name", device.name)
+        device.meta = data.get("meta", device.meta)
+        device.save()
 
-    return Response({"status": "ok", "created": created}, status=200)
+        return Response({"status": "ok", "created": created}, status=200)
+
+    except Exception as e:
+        return Response({"status": "error", "message": str(e)}, status=500)
