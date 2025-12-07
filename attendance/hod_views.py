@@ -7,6 +7,8 @@ from django.db import transaction
 from django.http import JsonResponse, HttpResponse
 from django.template.loader import render_to_string
 from django.utils.timezone import now
+from django.contrib.auth import logout
+
 
 from weasyprint import HTML
 
@@ -44,7 +46,8 @@ def hod_only(view_func):
 # STUDENT CRUD
 # =====================================================
 
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def manage_students(request):
     students = Student.objects.select_related("class_group").order_by("student_id")
     classes = ClassGroup.objects.all().order_by("name")
@@ -53,8 +56,8 @@ def manage_students(request):
         "classes": classes,
     })
 
-
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def add_student(request):
     classes = ClassGroup.objects.all().order_by("name")
 
@@ -66,9 +69,25 @@ def add_student(request):
         nfc_uid = request.POST.get("nfc_uid", "").strip()
         class_id = request.POST.get("class_group")
 
+        # Required fields
         if not student_id or not first_name:
             messages.error(request, "Student ID and First Name are required.")
             return redirect("hod_add_student")
+
+        # Unique student ID
+        if Student.objects.filter(student_id=student_id).exists():
+            messages.error(request, f"Student ID '{student_id}' already exists.")
+            return redirect("hod_add_student")
+
+        # NFC UID uniqueness (student + teacher)
+        if nfc_uid:
+            nfc_uid = nfc_uid.strip()
+            if Student.objects.filter(nfc_uid=nfc_uid).exists():
+                messages.error(request, f"NFC UID '{nfc_uid}' is already used by another student.")
+                return redirect("hod_add_student")
+            if TeacherProfile.objects.filter(nfc_uid=nfc_uid).exists():
+                messages.error(request, f"NFC UID '{nfc_uid}' is already used by a teacher.")
+                return redirect("hod_add_student")
 
         Student.objects.create(
             student_id=student_id,
@@ -85,25 +104,50 @@ def add_student(request):
     return render(request, "attendance/hod_add_student.html", {"classes": classes})
 
 
-@hod_only
+
+@login_required
+@user_passes_test(is_hod)
 def edit_student(request, pk):
     student = get_object_or_404(Student, pk=pk)
     classes = ClassGroup.objects.all().order_by("name")
 
     if request.method == "POST":
-        student.student_id = request.POST.get("student_id", "").strip()
-        student.first_name = request.POST.get("first_name", "").strip()
-        student.last_name = request.POST.get("last_name", "").strip()
-        student.email = request.POST.get("email", "").strip() or None
-        student.nfc_uid = request.POST.get("nfc_uid", "").strip() or None
-        student.class_group_id = request.POST.get("class_group") or None
+        new_student_id = request.POST.get("student_id", "").strip().upper()
+        first_name = request.POST.get("first_name", "").strip()
+        last_name = request.POST.get("last_name", "").strip()
+        email = request.POST.get("email", "").strip().lower()
+        nfc_uid = request.POST.get("nfc_uid", "").strip().upper()
+        class_id = request.POST.get("class_group")
 
-        if not student.student_id or not student.first_name:
+        # Validation: required
+        if not new_student_id or not first_name:
             messages.error(request, "Student ID and First Name are required.")
             return redirect("hod_edit_student", pk=pk)
 
+        # Unique Student ID
+        if Student.objects.exclude(pk=pk).filter(student_id=new_student_id).exists():
+            messages.error(request, f"Student ID '{new_student_id}' already exists.")
+            return redirect("hod_edit_student", pk=pk)
+
+        # Unique NFC UID
+        if nfc_uid:
+            if Student.objects.exclude(pk=pk).filter(nfc_uid=nfc_uid).exists():
+                messages.error(request, f"NFC UID '{nfc_uid}' already belongs to another student.")
+                return redirect("hod_edit_student", pk=pk)
+            if TeacherProfile.objects.filter(nfc_uid=nfc_uid).exists():
+                messages.error(request, f"NFC UID '{nfc_uid}' belongs to a teacher.")
+                return redirect("hod_edit_student", pk=pk)
+
+        # Update
+        student.student_id = new_student_id
+        student.first_name = first_name
+        student.last_name = last_name
+        student.email = email or None
+        student.nfc_uid = nfc_uid or None
+        student.class_group_id = class_id or None
         student.save()
-        messages.success(request, f"Student {student.student_id} updated.")
+
+        messages.success(request, f"Student {student.student_id} updated successfully.")
         return redirect("hod_manage_students")
 
     return render(request, "attendance/hod_edit_student.html", {
@@ -111,8 +155,14 @@ def edit_student(request, pk):
         "classes": classes,
     })
 
+@login_required
+@user_passes_test(is_hod)
+def hod_fine_calculator(request):
+    print(">>> HOD FINE CALCULATOR VIEW HIT. METHOD =", request.method)
 
-@hod_only
+
+@login_required
+@user_passes_test(is_hod)
 def delete_student(request, pk):
     student = get_object_or_404(Student, pk=pk)
     sid = student.student_id
@@ -125,7 +175,8 @@ def delete_student(request, pk):
 # TEACHER CRUD
 # =====================================================
 
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def manage_teachers(request):
     teachers = TeacherProfile.objects.select_related("user").prefetch_related("classes", "subjects")
     classes = ClassGroup.objects.all().order_by("name")
@@ -136,52 +187,121 @@ def manage_teachers(request):
         "subjects": subjects,
     })
 
-
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def add_teacher(request):
-    users = User.objects.filter(is_teacher=True).order_by("username")
     classes = ClassGroup.objects.all().order_by("name")
     subjects = Subject.objects.all().order_by("code")
 
     if request.method == "POST":
-        user_id = request.POST.get("user_id")
+        username = request.POST.get("username", "").strip()
+        email = request.POST.get("email", "").strip()
+        # Password: if empty, we auto-generate a simple one for demo
+        raw_password = request.POST.get("password", "").strip()
         nfc_uid = request.POST.get("nfc_uid", "").strip()
         class_ids = request.POST.getlist("classes")
         subject_ids = request.POST.getlist("subjects")
 
-        user = get_object_or_404(User, pk=user_id)
+        # -------------------------------
+        # Basic required validation
+        # -------------------------------
+        if not username or not email:
+            messages.error(request, "Username and email are required.")
+            return redirect("hod_add_teacher")
 
-        with transaction.atomic():
-            profile, created = TeacherProfile.objects.get_or_create(user=user)
-            profile.nfc_uid = nfc_uid or None
-            profile.save()
+        # -------------------------------
+        # Username / email uniqueness
+        # -------------------------------
+        if User.objects.filter(username=username).exists():
+            messages.error(request, f"Username '{username}' already exists. Choose a different one.")
+            return redirect("hod_add_teacher")
+
+        if User.objects.filter(email=email).exists():
+            messages.error(request, f"Email '{email}' is already used by another account.")
+            return redirect("hod_add_teacher")
+
+        # -------------------------------
+        # NFC UID uniqueness
+        # -------------------------------
+        if nfc_uid:
+            # strip accidental spaces
+            nfc_uid = nfc_uid.strip()
+            if TeacherProfile.objects.filter(nfc_uid=nfc_uid).exists():
+                messages.error(request, f"NFC UID '{nfc_uid}' is already assigned to a teacher.")
+                return redirect("hod_add_teacher")
+            if Student.objects.filter(nfc_uid=nfc_uid).exists():
+                messages.error(request, f"NFC UID '{nfc_uid}' is already assigned to a student.")
+                return redirect("hod_add_teacher")
+
+        # -------------------------------
+        # Simple demo password logic
+        # -------------------------------
+        if raw_password:
+            password = raw_password
+            pw_msg = f" (password as entered)"
+        else:
+            # Auto-generate very simple password for demo
+            password = f"{username.lower()}123"
+            pw_msg = f" (auto password set to '{password}')"
+
+        # -------------------------------
+        # Create user
+        # -------------------------------
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            is_teacher=True,
+            is_staff=True,
+)
+
+        # -------------------------------
+        # Create teacher profile
+        # -------------------------------
+        profile = TeacherProfile.objects.create(
+            user=user,
+            nfc_uid=nfc_uid or None,
+        )
+        if class_ids:
             profile.classes.set(class_ids)
+        if subject_ids:
             profile.subjects.set(subject_ids)
 
-        messages.success(request, f"Teacher profile for {user.username} saved.")
+        messages.success(request, f"Teacher '{username}' created successfully!{pw_msg}")
         return redirect("hod_manage_teachers")
 
     return render(request, "attendance/hod_add_teacher.html", {
-        "users": users,
         "classes": classes,
         "subjects": subjects,
     })
 
 
-@hod_only
+
+@login_required
+@user_passes_test(is_hod)
 def edit_teacher(request, pk):
     profile = get_object_or_404(TeacherProfile, pk=pk)
     classes = ClassGroup.objects.all().order_by("name")
     subjects = Subject.objects.all().order_by("code")
 
     if request.method == "POST":
-        profile.nfc_uid = request.POST.get("nfc_uid", "").strip() or None
-        profile.save()
+        nfc_uid = request.POST.get("nfc_uid", "").strip().upper()
 
+        # Validate unique NFC UID
+        if nfc_uid:
+            if TeacherProfile.objects.exclude(pk=pk).filter(nfc_uid=nfc_uid).exists():
+                messages.error(request, f"NFC UID '{nfc_uid}' is already used by another teacher.")
+                return redirect("hod_edit_teacher", pk=pk)
+            if Student.objects.filter(nfc_uid=nfc_uid).exists():
+                messages.error(request, f"NFC UID '{nfc_uid}' belongs to a student.")
+                return redirect("hod_edit_teacher", pk=pk)
+
+        profile.nfc_uid = nfc_uid or None
         profile.classes.set(request.POST.getlist("classes"))
         profile.subjects.set(request.POST.getlist("subjects"))
+        profile.save()
 
-        messages.success(request, f"Teacher {profile.user.username} updated.")
+        messages.success(request, f"Teacher {profile.user.username} updated successfully.")
         return redirect("hod_manage_teachers")
 
     return render(request, "attendance/hod_edit_teacher.html", {
@@ -191,26 +311,36 @@ def edit_teacher(request, pk):
     })
 
 
-@hod_only
+
+@login_required
+@user_passes_test(is_hod)
 def delete_teacher(request, pk):
     profile = get_object_or_404(TeacherProfile, pk=pk)
-    username = profile.user.username
-    profile.delete()
-    messages.success(request, f"Teacher profile for {username} deleted.")
-    return redirect("hod_manage_teachers")
+    user = profile.user
+    username = user.username
 
+    # Delete profile first (cascades any relations)
+    profile.delete()
+
+    # Then delete the auth user so it disappears from Admin → Users
+    user.delete()
+
+    messages.success(request, f"Teacher '{username}' and their login account deleted.")
+    return redirect("hod_manage_teachers")
 
 # =====================================================
 # CLASS CRUD
 # =====================================================
 
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def manage_classes(request):
     classes = ClassGroup.objects.select_related("department").order_by("name")
     return render(request, "attendance/hod_manage_classes.html", {"classes": classes})
 
 
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def add_class(request):
     departments = Department.objects.all().order_by("name")
 
@@ -221,6 +351,10 @@ def add_class(request):
 
         if not name:
             messages.error(request, "Class name is required.")
+            return redirect("hod_add_class")
+
+        if ClassGroup.objects.filter(name__iexact=name).exists():
+            messages.error(request, f"Class '{name}' already exists.")
             return redirect("hod_add_class")
 
         ClassGroup.objects.create(
@@ -237,7 +371,8 @@ def add_class(request):
     })
 
 
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def edit_class(request, pk):
     c = get_object_or_404(ClassGroup, pk=pk)
     departments = Department.objects.all().order_by("name")
@@ -260,8 +395,8 @@ def edit_class(request, pk):
         "departments": departments,
     })
 
-
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def delete_class(request, pk):
     c = get_object_or_404(ClassGroup, pk=pk)
     name = c.name
@@ -274,13 +409,15 @@ def delete_class(request, pk):
 # SUBJECT CRUD
 # =====================================================
 
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def manage_subjects(request):
     subjects = Subject.objects.select_related("department").order_by("code")
     return render(request, "attendance/hod_manage_subjects.html", {"subjects": subjects})
 
 
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def add_subject(request):
     departments = Department.objects.all().order_by("name")
 
@@ -289,40 +426,65 @@ def add_subject(request):
         name = request.POST.get("name", "").strip()
         dept_id = request.POST.get("department")
 
+        # REQUIRED
         if not code or not name:
             messages.error(request, "Subject code and name are required.")
             return redirect("hod_add_subject")
 
-        Subject.objects.create(
-            code=code,
-            name=name,
-            department_id=dept_id or None,
-        )
+        # UNIQUE CODE
+        if Subject.objects.filter(code__iexact=code).exists():
+            messages.error(request, f"Subject code '{code}' already exists.")
+            return redirect("hod_add_subject")
 
-        messages.success(request, f"Subject {code} created.")
+        # UNIQUE NAME
+        if Subject.objects.filter(name__iexact=name).exists():
+            messages.error(request, f"Subject name '{name}' already exists.")
+            return redirect("hod_add_subject")
+
+        # CREATE SAFELY
+        try:
+            Subject.objects.create(
+                code=code,
+                name=name,
+                department_id=dept_id or None
+            )
+        except Exception as e:
+            messages.error(request, f"Cannot create subject: {e}")
+            return redirect("hod_add_subject")
+
+        messages.success(request, f"Subject '{code}' created successfully.")
         return redirect("hod_manage_subjects")
 
     return render(request, "attendance/hod_add_subject.html", {
         "departments": departments,
     })
 
-
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def edit_subject(request, pk):
     subject = get_object_or_404(Subject, pk=pk)
     departments = Department.objects.all().order_by("name")
 
     if request.method == "POST":
-        subject.code = request.POST.get("code", "").strip()
-        subject.name = request.POST.get("name", "").strip()
-        subject.department_id = request.POST.get("department") or None
+        code = request.POST.get("code", "").strip().upper().replace(" ", "")
+        name = request.POST.get("name", "").strip()
+        dept_id = request.POST.get("department")
 
-        if not subject.code or not subject.name:
+        if not code or not name:
             messages.error(request, "Subject code and name are required.")
             return redirect("hod_edit_subject", pk=pk)
 
+        # Unique subject code
+        if Subject.objects.exclude(pk=pk).filter(code=code).exists():
+            messages.error(request, f"Subject code '{code}' already exists.")
+            return redirect("hod_edit_subject", pk=pk)
+
+        subject.code = code
+        subject.name = name
+        subject.department_id = dept_id or None
         subject.save()
-        messages.success(request, f"Subject {subject.code} updated.")
+
+        messages.success(request, f"Subject {code} updated.")
         return redirect("hod_manage_subjects")
 
     return render(request, "attendance/hod_edit_subject.html", {
@@ -331,7 +493,10 @@ def edit_subject(request, pk):
     })
 
 
-@hod_only
+
+
+@login_required
+@user_passes_test(is_hod)
 def delete_subject(request, pk):
     subject = get_object_or_404(Subject, pk=pk)
     name = subject.code
@@ -344,7 +509,8 @@ def delete_subject(request, pk):
 # BULK IMPORT STUDENTS
 # =====================================================
 
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def import_students(request):
     classes = ClassGroup.objects.all().order_by("name")
 
@@ -400,7 +566,8 @@ def import_students(request):
 # DEPARTMENT CRUD
 # =====================================================
 
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def manage_departments(request):
     departments = Department.objects.all().order_by("name")
     return render(request, "attendance/hod_manage_departments.html", {
@@ -408,7 +575,8 @@ def manage_departments(request):
     })
 
 
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def add_department(request):
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
@@ -418,6 +586,10 @@ def add_department(request):
             messages.error(request, "Department name is required.")
             return redirect("hod_add_department")
 
+        if Department.objects.filter(name__iexact=name).exists():
+            messages.error(request, f"Department '{name}' already exists.")
+            return redirect("hod_add_department")
+
         Department.objects.create(name=name, code=code or None)
         messages.success(request, f"Department '{name}' created.")
         return redirect("hod_manage_departments")
@@ -425,7 +597,8 @@ def add_department(request):
     return render(request, "attendance/hod_add_department.html")
 
 
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def edit_department(request, pk):
     dept = get_object_or_404(Department, pk=pk)
 
@@ -444,7 +617,8 @@ def edit_department(request, pk):
     return render(request, "attendance/hod_edit_department.html", {"department": dept})
 
 
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def delete_department(request, pk):
     dept = get_object_or_404(Department, pk=pk)
     name = dept.name
@@ -456,42 +630,45 @@ def delete_department(request, pk):
 # ANALYTICS WRAPPERS (USE analytics.py ENGINE)
 # =====================================================
 
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def analytics_weekly(request):
     start_dt, end_dt, _ = aura_analytics.get_date_range_from_request(request)
     data = aura_analytics.weekly_class_overview(start_dt, end_dt)
     return JsonResponse(data)
 
-
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def analytics_monthly(request):
     start_dt, end_dt, _ = aura_analytics.get_date_range_from_request(request)
     data = aura_analytics.monthly_trend(start_dt, end_dt)
     return JsonResponse(data)
 
 
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def analytics_classwise(request):
     start_dt, end_dt, _ = aura_analytics.get_date_range_from_request(request)
     data = aura_analytics.classwise_distribution(start_dt, end_dt)
     return JsonResponse(data)
 
 
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def analytics_subject_heatmap(request):
     start_dt, end_dt, _ = aura_analytics.get_date_range_from_request(request)
     data = aura_analytics.subject_heatmap_data(start_dt, end_dt)
     return JsonResponse(data)
 
-
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def analytics_teacher_activity(request):
     start_dt, end_dt, _ = aura_analytics.get_date_range_from_request(request)
     data = aura_analytics.teacher_activity_data(start_dt, end_dt)
     return JsonResponse(data)
 
-
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def analytics_absence_distribution(request):
     start_dt, end_dt, _ = aura_analytics.get_date_range_from_request(request)
     data = aura_analytics.absence_distribution_data(start_dt, end_dt)
@@ -501,8 +678,8 @@ def analytics_absence_distribution(request):
 # =====================================================
 # ANALYTICS PAGE
 # =====================================================
-
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def hod_analytics_page(request):
     return render(request, "attendance/hod_analytics.html")
 
@@ -513,8 +690,8 @@ def hod_analytics_page(request):
 # 3) Teacher performance
 # 4) Overall HOD overview (last 30 days)
 # =====================================================
-
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def hod_student_report_pdf(request, student_id):
     """
     Per-student summary: total present/absent, overall percentage,
@@ -571,7 +748,8 @@ def hod_student_report_pdf(request, student_id):
     return response
 
 
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def hod_class_report_pdf(request, class_id):
     """
     Class summary: each student's present/absent/percentage
@@ -633,7 +811,8 @@ def hod_class_report_pdf(request, class_id):
     return response
 
 
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def hod_teacher_report_pdf(request, teacher_id):
     """
     Teacher performance: sessions in last 7/30/90 days +
@@ -690,7 +869,8 @@ def hod_teacher_report_pdf(request, teacher_id):
     return response
 
 
-@hod_only
+@login_required
+@user_passes_test(is_hod)
 def hod_overview_report_pdf(request):
     """
     Overall HOD dashboard-style summary for last 30 days.
@@ -748,3 +928,202 @@ def hod_overview_report_pdf(request):
     response = HttpResponse(pdf, content_type="application/pdf")
     response["Content-Disposition"] = 'inline; filename="hod_overview_last30_report.pdf"'
     return response
+
+
+from django.shortcuts import render
+from django.utils import timezone
+from attendance.models import Student, Attendance, FineRule
+
+@login_required
+@user_passes_test(is_hod)
+def hod_fine_calculator(request):
+    from .models import FineRule, Student, Attendance, ClassGroup
+
+    rule = FineRule.objects.filter(active=True).first()
+
+    classes = ClassGroup.objects.all()   # <-- required for dropdown
+
+    student_result = None
+    class_results = None
+
+    if not rule:
+        return render(request, "attendance/hod_fine_calculator.html", {
+            "error": "No active fine rule found.",
+            "classes": classes,
+        })
+
+    if request.method == "POST":
+        mode = request.POST.get("mode")
+
+        # -------------------------
+        # MODE 1: Student fine
+        # -------------------------
+        if mode == "student":
+            student_id = request.POST.get("student_id", "").strip().upper()
+            student = Student.objects.filter(student_id=student_id).first()
+
+            if student:
+                total_sessions = Attendance.objects.filter(student=student).count()
+                present = Attendance.objects.filter(student=student, present=True).count()
+
+                percent = (present / total_sessions * 100) if total_sessions else 0
+                absent_days = total_sessions - present
+                fine = absent_days * float(rule.fine_per_day) if percent < rule.threshold_percent else 0
+
+                student_result = {
+                    "student_id": student.student_id,
+                    "name": f"{student.first_name} {student.last_name}",
+                    "class": student.class_group.name if student.class_group else "NA",
+                    "percent": round(percent, 2),
+                    "total_sessions": total_sessions,
+                    "present": present,
+                    "absent_days": absent_days,
+                    "fine": round(fine, 2),
+                }
+
+        # -------------------------
+        # MODE 2: Class fine
+        # -------------------------
+        elif mode == "class":
+            class_id = request.POST.get("class_id")
+            class_group = ClassGroup.objects.filter(id=class_id).first()
+
+            if class_group:
+                students = Student.objects.filter(class_group=class_group)
+                class_results = []
+
+                for s in students:
+                    total_sessions = Attendance.objects.filter(student=s).count()
+                    present = Attendance.objects.filter(student=s, present=True).count()
+
+                    percent = (present / total_sessions * 100) if total_sessions else 0
+                    absent_days = total_sessions - present
+                    fine = absent_days * float(rule.fine_per_day) if percent < rule.threshold_percent else 0
+
+                    class_results.append({
+                        "student_id": s.student_id,
+                        "name": f"{s.first_name} {s.last_name}",
+                        "percent": round(percent, 2),
+                        "absent_days": absent_days,
+                        "fine": round(fine, 2),
+                    })
+
+                # Optional sorting
+                class_results = sorted(class_results, key=lambda x: x["fine"], reverse=True)
+
+    return render(request, "attendance/hod_fine_calculator.html", {
+        "student_result": student_result,
+        "class_results": class_results,
+        "classes": classes,
+    })
+
+
+
+@login_required
+@user_passes_test(is_hod)
+def import_students(request):
+    """
+    Crash-proof CSV import with:
+    - Safe decoding
+    - Uppercase student_id + NFC UID
+    - Lowercase emails
+    - Valid class matching
+    - Unique student_id and NFC UID checks
+    - Graceful errors per-row
+    """
+    classes = ClassGroup.objects.all().order_by("name")
+
+    if request.method == "POST":
+        file = request.FILES.get("csv_file")
+        if not file:
+            messages.error(request, "Upload a CSV file.")
+            return redirect("hod_import_students")
+
+        try:
+            decoded = file.read().decode("utf-8")
+        except Exception:
+            messages.error(request, "Unable to decode CSV. Must be UTF-8.")
+            return redirect("hod_import_students")
+
+        reader = None
+        try:
+            reader = csv.DictReader(io.StringIO(decoded))
+        except Exception as e:
+            messages.error(request, f"CSV parsing error: {e}")
+            return redirect("hod_import_students")
+
+        created = 0
+        updated = 0
+        errors = []
+
+        for index, row in enumerate(reader, start=2):  # start at row 2 (row 1 is header)
+            try:
+                sid = (row.get("student_id") or "").strip().upper()
+                if not sid:
+                    errors.append(f"Row {index}: Missing student_id")
+                    continue
+
+                first_name = (row.get("first_name") or "").strip()
+                last_name = (row.get("last_name") or "").strip()
+                email = (row.get("email") or "").strip().lower() or None
+                uid = (row.get("nfc_uid") or "").strip().upper() or None
+                class_name = (row.get("class_group_name") or "").strip()
+
+                # CLASS LOOKUP
+                class_obj = None
+                if class_name:
+                    class_obj = ClassGroup.objects.filter(name__iexact=class_name).first()
+                    if not class_obj:
+                        errors.append(f"Row {index}: Unknown class '{class_name}'")
+                        continue
+
+                # UNIQUE CHECK: student_id (only if creating new)
+                existing = Student.objects.filter(student_id=sid).first()
+                if not existing and Student.objects.filter(student_id=sid).exists():
+                    errors.append(f"Row {index}: Student ID '{sid}' already exists.")
+                    continue
+
+                # UNIQUE CHECK: NFC UID
+                if uid:
+                    uid_conflict = Student.objects.filter(nfc_uid=uid).exclude(student_id=sid).exists() or \
+                                   TeacherProfile.objects.filter(nfc_uid=uid).exists()
+                    if uid_conflict:
+                        errors.append(f"Row {index}: NFC UID '{uid}' already assigned.")
+                        continue
+
+                # CREATE or UPDATE
+                obj, is_created = Student.objects.update_or_create(
+                    student_id=sid,
+                    defaults={
+                        "first_name": first_name,
+                        "last_name": last_name,
+                        "email": email,
+                        "nfc_uid": uid,
+                        "class_group": class_obj,
+                    }
+                )
+
+                if is_created:
+                    created += 1
+                else:
+                    updated += 1
+
+            except Exception as e:
+                errors.append(f"Row {index}: Unexpected error — {str(e)}")
+
+        # SUMMARY MESSAGE
+        if errors:
+            messages.error(
+                request,
+                f"Import completed with errors.<br>"
+                f"Created: {created}<br>"
+                f"Updated: {updated}<br><br>"
+                + "<br>".join(errors)
+            )
+        else:
+            messages.success(request, f"Import successful: Created {created}, Updated {updated}")
+
+        return redirect("hod_manage_students")
+
+    return render(request, "attendance/hod_import_students.html", {"classes": classes})
+

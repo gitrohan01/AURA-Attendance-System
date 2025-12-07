@@ -5,6 +5,10 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
 from datetime import date, timedelta
 import datetime
+from django.contrib.auth import logout
+import zipfile
+from io import BytesIO
+
 
 from .utils import (
     export_subject_csv,
@@ -23,7 +27,7 @@ from .utils import (
 
 from .models import (
     User, ClassGroup, Session, Student,
-    Department, Attendance, FineRule, Device, Subject
+    Department, Attendance, FineRule, Device, Subject, TeacherProfile
 )
 from django.contrib.auth import authenticate, login
 
@@ -73,7 +77,14 @@ def teacher_login(request):
 @login_required
 @user_passes_test(is_teacher)
 def teacher_dashboard(request):
-    profile = request.user.teacher_profile
+    """
+    Safe teacher dashboard:
+    - Auto-creates TeacherProfile if missing
+    - Never crashes with 'User has no teacher_profile'
+    """
+    # Make sure profile exists
+    profile, _ = TeacherProfile.objects.get_or_create(user=request.user)
+
     classes = profile.classes.all()
     subjects = profile.subjects.all()
 
@@ -85,6 +96,7 @@ def teacher_dashboard(request):
         "subjects": subjects,
         "red_flags": red_flags,
     })
+
 
 
 # -------------------------------------------------------------------
@@ -355,61 +367,6 @@ def notify_hod_class(request, class_id):
     return JsonResponse({"status": "ok"})
 
 
-# -------------------------------------------------------------------
-# HOD Fine Calculator
-# -------------------------------------------------------------------
-@login_required
-@user_passes_test(is_hod)
-def fine_calculator(request, class_id=None):
-    rules = FineRule.objects.filter(active=True).order_by('-id')
-    selected_rule = rules.first() if rules.exists() else None
-
-    students = []
-    applied_rule = None
-
-    if request.method == "POST":
-        rule_id = request.POST.get("rule_id")
-        start = request.POST.get("start_date")
-        end = request.POST.get("end_date")
-
-        start = datetime.date.fromisoformat(start) if start else date.today().replace(day=1)
-        end = datetime.date.fromisoformat(end) if end else date.today()
-
-        applied_rule = FineRule.objects.filter(id=rule_id).first()
-
-        class_id = request.POST.get("class_id") or class_id
-        students_qs = Student.objects.filter(class_group_id=class_id) if class_id else Student.objects.all()
-
-        for s in students_qs:
-            perc = attendance_percentage(s, s.class_group, None, start, end)
-
-            total_sessions = Session.objects.filter(
-                class_group=s.class_group,
-                start_time__date__range=(start, end),
-                cancelled=False
-            ).count()
-
-            present_count = Attendance.objects.filter(
-                student=s, present=True,
-                session__start_time__date__range=(start, end)
-            ).count()
-
-            absent_days = total_sessions - present_count
-            fine = float(applied_rule.fine_per_day) * absent_days if applied_rule and perc < applied_rule.threshold_percent else 0
-
-            students.append({
-                "student": s,
-                "percentage": perc,
-                "absent_days": absent_days,
-                "fine": fine
-            })
-
-    return render(request, "attendance/hod_fine_calculator.html", {
-        "rules": rules,
-        "selected_rule": selected_rule,
-        "students": students,
-        "applied_rule": applied_rule,
-    })
 
 
 # -------------------------------------------------------------------
@@ -490,20 +447,31 @@ def teacher_report_subject(request, subject_id):
         "subject": subject,
         "sessions": sessions,
     })
-
-
 @login_required
 @user_passes_test(is_teacher)
 def teacher_report_student(request, student_id):
     student = get_object_or_404(Student, student_id=student_id)
 
-    records = Attendance.objects.filter(student=student)
+    # All attendance records
+    records = Attendance.objects.filter(student=student).order_by("-timestamp")
+
+    # Sessions where student attended
     sessions = Session.objects.filter(attendances__student=student).distinct()
+
+    # Compute summary
+    present_count = records.filter(present=True).count()
+    absent_count = records.filter(present=False).count()
+    total_sessions = present_count + absent_count
+    percentage = round((present_count / total_sessions * 100), 2) if total_sessions else 0
 
     return render(request, "attendance/teacher_report_student.html", {
         "student": student,
         "records": records,
         "sessions": sessions,
+        "present_count": present_count,
+        "absent_count": absent_count,
+        "total_sessions": total_sessions,
+        "percentage": percentage,
     })
 
 
@@ -511,11 +479,43 @@ def teacher_report_student(request, student_id):
 @user_passes_test(is_teacher)
 def teacher_report_monthly(request):
     teacher = request.user
-    sessions = Session.objects.filter(teacher=teacher)
+
+    today = date.today()
+    days = []
+    present_list = []
+    absent_list = []
+
+    for i in range(29, -1, -1):  # last 30 days
+        d = today - timedelta(days=i)
+        days.append(d.strftime("%d %b"))
+
+        present = Attendance.objects.filter(
+            session__teacher=teacher,
+            present=True,
+            timestamp__date=d
+        ).count()
+
+        absent = Attendance.objects.filter(
+            session__teacher=teacher,
+            present=False,
+            timestamp__date=d
+        ).count()
+
+        present_list.append(present)
+        absent_list.append(absent)
+
+    total_present = sum(present_list)
+    total_absent = sum(absent_list)
+    total = total_present + total_absent
+    percentage = round((total_present / total * 100), 2) if total else 0
 
     return render(request, "attendance/teacher_report_monthly.html", {
-        "sessions": sessions,
+        "days": days,
+        "present_list": present_list,
+        "absent_list": absent_list,
+        "percentage": percentage,
     })
+
 
 
 @login_required
@@ -625,3 +625,288 @@ def teacher_redflags(request):
     return render(request, "attendance/teacher_redflags.html", {
         "red_flags": red_flags
     })
+
+
+
+# ============================================
+#  PENDING SESSION VIEWS (SAFE + MINIMAL)
+# ============================================
+
+from .models import PendingSession, PendingStudent, Session, Attendance
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect, get_object_or_404
+from django.utils import timezone
+
+
+@login_required
+def teacher_pending_list(request):
+    """
+    Show all pending IoT sessions for the logged-in teacher.
+    """
+    teacher = request.user
+
+    pending = PendingSession.objects.filter(
+        teacher=teacher,
+        finalized=False
+    ).order_by("-created_at")
+
+    return render(request, "attendance/teacher_pending_list.html", {
+        "pending_sessions": pending
+    })
+
+
+@login_required
+def teacher_pending_review(request, pk):
+    """
+    Teacher opens a pending session and edits the student present/absent list.
+    """
+    session = get_object_or_404(PendingSession, pk=pk, teacher=request.user)
+
+    students = PendingStudent.objects.filter(pending_session=session).select_related("student")
+
+    return render(request, "attendance/teacher_pending_review.html", {
+        "pending": session,
+        "students": students
+    })
+
+
+@login_required
+def teacher_pending_submit(request, pk):
+    """
+    Convert PendingSession → Real Session + Attendance entries.
+    """
+    pending = get_object_or_404(PendingSession, pk=pk, teacher=request.user)
+
+    if request.method != "POST":
+        return redirect("teacher_pending_review", pk=pk)
+
+    # --- Create real session ---
+    real = Session.objects.create(
+        session_id=pending.temp_id,
+        subject=pending.subject,
+        class_group=pending.class_group,
+        teacher=request.user,
+        start_time=pending.created_at,
+        end_time=timezone.now()
+    )
+
+    # --- Save attendance ---
+    students = PendingStudent.objects.filter(pending_session=pending)
+
+    for s in students:
+        Attendance.objects.create(
+            session=real,
+            student=s.student,
+            present=s.present,
+            timestamp=s.timestamp or timezone.now(),
+            source="RFID",
+            device_id=pending.device_id
+        )
+
+    # Mark pending as finalized
+    pending.finalized = True
+    pending.save()
+
+    return redirect("teacher_sessions")  # back to teacher's session history
+
+
+def logout_view(request):
+    user = request.user
+    logout(request)
+
+    # Redirect based on role
+    if getattr(user, "is_hod", False):
+        return redirect("/hod/login/")
+    else:
+        return redirect("/teacher/login/")
+
+
+from io import BytesIO
+import zipfile
+from django.http import HttpResponse
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.template.loader import render_to_string
+from weasyprint import HTML
+
+from .models import Student, Attendance, Session, ClassGroup, Subject
+from .utils import export_class_csv, export_class_xlsx, export_subject_csv, export_subject_xlsx
+
+
+@login_required
+@user_passes_test(is_teacher)
+def teacher_export_center(request):
+    classes = ClassGroup.objects.all()
+    subjects = Subject.objects.all()
+
+    return render(request, "attendance/teacher_export_center.html", {
+        "classes": classes,
+        "subjects": subjects,
+    })
+
+def export_class_pdf(class_group):
+    """
+    Generate a PDF report for a Class Group.
+    """
+    students = Student.objects.filter(class_group=class_group)
+
+    sessions = class_group.session_set.all()
+    total_sessions = sessions.count()
+
+    student_rows = []
+
+    for student in students:
+        present = Attendance.objects.filter(
+            student=student,
+            session__class_group=class_group,
+            present=True
+        ).count()
+
+        absent = total_sessions - present
+        percentage = round((present / total_sessions) * 100, 2) if total_sessions else 0
+
+        student_rows.append({
+            "student": student,
+            "present": present,
+            "absent": absent,
+            "percentage": percentage,
+        })
+
+    html_string = render_to_string("attendance/report_class_pdf.html", {
+        "class_group": class_group,
+        "student_rows": student_rows,
+        "total_sessions": total_sessions,
+    })
+
+    pdf_buffer = BytesIO()
+    HTML(string=html_string).write_pdf(pdf_buffer)
+    pdf_buffer.seek(0)
+
+    return pdf_buffer.getvalue()
+
+@login_required
+@user_passes_test(is_teacher)
+def export_class(request, class_id, fmt):
+    class_group = get_object_or_404(ClassGroup, id=class_id)
+
+    if fmt == "csv":
+        buf = export_class_csv(class_id)
+        content_type = "text/csv"
+        filename = f"class_{class_group.name}.csv"
+
+    elif fmt == "xlsx":
+        buf = export_class_xlsx(class_id)
+        content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        filename = f"class_{class_group.name}.xlsx"
+
+    elif fmt == "pdf":
+        pdf_bytes = export_class_pdf(class_group)
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="class_{class_group.name}.pdf"'
+        return response
+
+    else:
+        return HttpResponse("Unsupported format", status=400)
+
+    response = HttpResponse(buf.getvalue(), content_type=content_type)
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+def export_subject_pdf(subject):
+    # Find all class groups where this subject has sessions
+    class_groups = ClassGroup.objects.filter(session__subject=subject).distinct()
+
+    # Fetch all students in those class groups
+    students = Student.objects.filter(class_group__in=class_groups)
+
+    # All sessions of this subject
+    sessions = Session.objects.filter(subject=subject)
+    total_sessions = sessions.count()
+
+    student_rows = []
+
+    for student in students:
+        present = Attendance.objects.filter(
+            student=student,
+            session__subject=subject,
+            present=True
+        ).count()
+
+        absent = total_sessions - present
+        percentage = round((present / total_sessions) * 100, 2) if total_sessions else 0
+
+        student_rows.append({
+            "student": student,
+            "present": present,
+            "absent": absent,
+            "percentage": percentage,
+        })
+
+    html_string = render_to_string("attendance/pdf/subject_report.html", {
+        "subject": subject,
+        "department": subject.department,
+        "student_rows": student_rows,
+        "total_sessions": total_sessions,
+    })
+
+    pdf_file = BytesIO()
+    HTML(string=html_string).write_pdf(pdf_file)
+    pdf_file.seek(0)
+
+    return pdf_file.getvalue()
+
+
+@login_required
+@user_passes_test(is_teacher)
+def export_subject(request, subject_id, fmt):
+    subject = get_object_or_404(Subject, id=subject_id)
+
+    if fmt == "csv":
+        buf = export_subject_csv(subject)
+        content_type = "text/csv"
+        filename = f"{subject.code}.csv"
+
+    elif fmt == "xlsx":
+        buf = export_subject_xlsx(subject)
+        content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        filename = f"{subject.code}.xlsx"
+
+    elif fmt == "pdf":
+        pdf_bytes = export_subject_pdf(subject)
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{subject.code}.pdf"'
+        return response
+
+    else:
+        return HttpResponse("Unsupported format", status=400)
+
+    response = HttpResponse(buf.getvalue(), content_type=content_type)
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+@user_passes_test(is_teacher)
+def bulk_export_zip(request, mode):
+    zip_buffer = BytesIO()
+    zip_file = zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED)
+
+    if mode == "classes":
+        for c in ClassGroup.objects.all():
+            csv_buf = export_class_csv(c.id).getvalue()
+            zip_file.writestr(f"{c.name}_class.csv", csv_buf)
+
+    elif mode == "subjects":
+        for s in Subject.objects.all():
+            csv_buf = export_subject_csv(s).getvalue()
+            zip_file.writestr(f"{s.code}_subject.csv", csv_buf)
+
+    else:
+        return HttpResponse("Invalid mode", status=400)
+
+    zip_file.close()
+
+    response = HttpResponse(zip_buffer.getvalue(), content_type="application/zip")
+    response['Content-Disposition'] = f'attachment; filename="{mode}_export.zip"'
+    return response
+

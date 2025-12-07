@@ -18,53 +18,88 @@
         h1 {
             color: #00a8ff;
         }
-        form {
-            max-width: 600px;
+        .contact-box {
+            max-width: 650px;
             margin: auto;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 25px;
-            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 30px;
+            border-radius: 10px;
         }
-        input, textarea {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: none;
-            border-radius: 5px;
+        .contact-item {
+            margin: 15px 0;
+            font-size: 1.1rem;
         }
-        button {
-            background: #00a8ff;
-            border: none;
-            padding: 10px 20px;
-            color: white;
-            cursor: pointer;
+        .label {
+            color: #00a8ff;
             font-weight: bold;
-            border-radius: 5px;
         }
-        button:hover {
-            background: #0090e0;
+        a {
+            color: #00a8ff;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
+
 <body>
-    <header>
-        <h1>Contact Us</h1>
-        <nav>
-            <a href="/">Home</a> |
-            <a href="/about/">About</a> |
-            <a href="/hardware/">Hardware</a>
-        </nav>
-    </header>
 
-    <form>
-        <input type="text" placeholder="Your Name" required>
-        <input type="email" placeholder="Your Email" required>
-        <textarea rows="5" placeholder="Your Message"></textarea>
-        <button type="submit">Send Message</button>
-    </form>
+<header>
+    <h1>Contact Developer</h1>
+    <nav>
+        <a href="/">Home</a> |
+        <a href="/about/">About</a> |
+        <a href="/hardware/">Hardware</a>
+    </nav>
+</header>
 
-    <footer>
-        <p>Developed with ❤️ by <strong>Rohan Rajendra Deshmukh</strong> | AURA © 2025</p>
-    </footer>
+<div class="contact-box">
+    <div class="contact-item">
+        <span class="label">👤 Developer:</span> Rohan Rajendra Deshmukh
+    </div>
+
+    <div class="contact-item">
+        <span class="label">📞 Mobile:</span> 9529890917
+    </div>
+
+    <div class="contact-item">
+        <span class="label">📧 Email:</span>
+        <a href="mailto:rohandeshmukh882002@gmail.com">rohandeshmukh882002@gmail.com</a>
+    </div>
+
+    <div class="contact-item">
+        <span class="label">🔗 LinkedIn:</span>
+        <a href="https://www.linkedin.com/in/rohanrdx07deshmukh/" target="_blank">
+            linkedin.com/in/rohanrdx07deshmukh
+        </a>
+    </div>
+
+    <div class="contact-item">
+        <span class="label">📸 Instagram:</span>
+        <a href="https://www.instagram.com/hackerdx08?igsh=NGI1c2dlNG9mMHR0" target="_blank">
+            instagram.com/hackerdx08
+        </a>
+    </div>
+
+    <div class="contact-item">
+        <span class="label">💻 GitHub:</span>
+        <a href="https://github.com/gitrohan01" target="_blank">
+            github.com/gitrohan01
+        </a>
+    </div>
+
+    <div class="contact-item">
+        <span class="label">🌐 Portfolio:</span>
+        <a href="https://rdxaura.co.in/" target="_blank">
+            rdxaura.co.in
+        </a>
+    </div>
+</div>
+
+<footer>
+    <p>Developed with ❤️ by <strong>Rohan Rajendra Deshmukh</strong> | AURA © 2025</p>
+</footer>
+
 </body>
 </html>

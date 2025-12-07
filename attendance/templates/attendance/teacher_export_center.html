@@ -1,0 +1,55 @@
+{% extends "attendance/base.html" %}
+
+{% block title %}Export Center — AURA{% endblock %}
+
+{% block content %}
+
+<h1 class="text-3xl font-bold text-sky-400 mb-6">📤 Export Center</h1>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- CLASSES -->
+    <div class="bg-white/5 p-6 rounded-xl border border-white/10 shadow">
+        <h2 class="text-xl font-semibold mb-3">🏫 Class Exports</h2>
+
+        {% for c in classes %}
+            <div class="mb-4 p-3 rounded bg-white/10 flex justify-between items-center">
+                <strong>{{ c.name }}</strong>
+
+                <div class="space-x-2">
+                    <a href="{% url 'export_class' c.id 'csv' %}" class="btn-small bg-blue-600">CSV</a>
+                    <a href="{% url 'export_class' c.id 'xlsx' %}" class="btn-small bg-green-600">XLSX</a>
+                    <a href="{% url 'export_class' c.id 'pdf' %}" class="btn-small bg-red-600">PDF</a>
+                </div>
+            </div>
+        {% endfor %}
+
+        <a href="{% url 'bulk_export_zip' 'classes' %}" class="btn w-full bg-purple-700 mt-3">
+            📦 Download All Classes (ZIP)
+        </a>
+    </div>
+
+    <!-- SUBJECTS -->
+    <div class="bg-white/5 p-6 rounded-xl border border-white/10 shadow">
+        <h2 class="text-xl font-semibold mb-3">📚 Subject Exports</h2>
+
+        {% for s in subjects %}
+            <div class="mb-4 p-3 rounded bg-white/10 flex justify-between items-center">
+                <strong>{{ s.name }} ({{ s.code }})</strong>
+
+                <div class="space-x-2">
+                    <a href="{% url 'export_subject' s.id 'csv' %}" class="btn-small bg-blue-600">CSV</a>
+                    <a href="{% url 'export_subject' s.id 'xlsx' %}" class="btn-small bg-green-600">XLSX</a>
+                    <a href="{% url 'export_subject' s.id 'pdf' %}" class="btn-small bg-red-600">PDF</a>
+                </div>
+            </div>
+        {% endfor %}
+
+        <a href="{% url 'bulk_export_zip' 'subjects' %}" class="btn w-full bg-purple-700 mt-3">
+            📦 Download All Subjects (ZIP)
+        </a>
+    </div>
+
+</div>
+
+{% endblock %}

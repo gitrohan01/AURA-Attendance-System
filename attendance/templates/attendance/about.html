@@ -44,13 +44,13 @@
     <section>
         <h2>Automated Unified Recognition-based Attendance</h2>
         <p>
-            <strong>AURA</strong> is an IoT-driven system that combines RFID-based identity verification and facial recognition 
+            <strong>AURA</strong> is an IoT-driven system that combines RFID-based identity verification and Session_log based verification
             to automate student attendance in classrooms. It eliminates manual intervention, reduces human error, and improves 
             the reliability of attendance records.
         </p>
         <p>
-            Teachers can start and end attendance sessions using RFID cards, and student presence is verified via facial data 
-            stored on an SD card within the ESP32-CAM module. The system uses Wi-Fi or LoRa to communicate securely with a Django 
+            Teachers can start and end attendance sessions using RFID cards, and student presence is verified via Rfid data 
+            stored on an SD card within the ESP32-S3 module. The system uses NRF24L01+PA+LNA to communicate securely with a Django 
             web server that stores, analyzes, and visualizes attendance data for teachers and HODs.
         </p>
     </section>

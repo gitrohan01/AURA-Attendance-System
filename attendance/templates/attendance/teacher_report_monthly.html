@@ -1,0 +1,67 @@
+{% extends "attendance/base.html" %}
+
+{% block title %}Monthly Attendance Analytics{% endblock %}
+
+{% block content %}
+
+<h1 class="text-3xl font-bold text-sky-400 mb-6">
+    📆 Monthly Attendance Analytics
+</h1>
+
+<!-- SUMMARY CARD -->
+<div class="bg-white/5 p-6 rounded-xl border border-white/10 shadow mb-8">
+    <h2 class="text-xl font-semibold mb-2">📊 30-Day Summary</h2>
+    <p><strong>Overall Attendance Percentage:</strong> {{ percentage }}%</p>
+</div>
+
+<!-- GRAPH -->
+<div class="bg-white/5 p-6 rounded-xl border border-white/10 shadow">
+    <h2 class="text-xl font-semibold mb-4">📈 Last 30 Days Attendance Chart</h2>
+
+    <canvas id="monthlyChart" height="120"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+const days = {{ days|safe }};
+const present = {{ present_list|safe }};
+const absent = {{ absent_list|safe }};
+
+new Chart(document.getElementById("monthlyChart"), {
+    type: "line",
+    data: {
+        labels: days,
+        datasets: [
+            {
+                label: "Present",
+                data: present,
+                borderColor: "#22c55e",
+                backgroundColor: "rgba(34,197,94,0.2)",
+                borderWidth: 2,
+                tension: 0.3
+            },
+            {
+                label: "Absent",
+                data: absent,
+                borderColor: "#ef4444",
+                backgroundColor: "rgba(239,68,68,0.2)",
+                borderWidth: 2,
+                tension: 0.3
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { labels: { color: "white" } }
+        },
+        scales: {
+            x: { ticks: { color: "white" } },
+            y: { ticks: { color: "white" } }
+        }
+    }
+});
+</script>
+
+{% endblock %}

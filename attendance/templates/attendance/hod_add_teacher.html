@@ -1,74 +1,75 @@
 {% extends "attendance/base.html" %}
+
 {% block title %}Add Teacher — AURA{% endblock %}
 
 {% block content %}
+<h1 class="text-2xl font-bold mb-4">Add Teacher</h1>
 
-<h1 class="text-3xl font-bold text-sky-400 mb-6">Add Teacher</h1>
-
-<div class="bg-white/5 border border-white/10 rounded-xl p-6 max-w-2xl">
-
-<form method="post">
+<div class="bg-white/5 p-6 rounded-xl shadow-lg">
+    
+  <form method="post" class="space-y-5">
     {% csrf_token %}
 
-    <!-- Select existing User marked as teacher -->
-    <label class="block mb-4">
-        <span class="text-gray-300 text-sm">Select User (Teacher)</span>
-        <select name="user_id" required
-                class="w-full bg-white/10 border border-white/20 px-3 py-2 rounded">
-            <option value="">Select user</option>
-            {% for u in users %}
-            <option value="{{ u.id }}">
-                {{ u.username }} — {{ u.get_full_name|default:"(no name)" }}
-            </option>
-            {% endfor %}
-        </select>
-        <p class="text-xs text-gray-400 mt-1">
-            Only users with <code>is_teacher=True</code> are shown here.
-        </p>
-    </label>
+    <!-- Username -->
+    <div>
+      <label class="block text-sm mb-1 font-semibold">Username</label>
+      <input type="text" name="username"
+             class="w-full p-2 bg-white/10 rounded outline-none"
+             placeholder="Enter username" required>
+    </div>
+
+    <!-- Email -->
+    <div>
+      <label class="block text-sm mb-1 font-semibold">Email</label>
+      <input type="email" name="email"
+             class="w-full p-2 bg-white/10 rounded outline-none"
+             placeholder="Enter teacher email" required>
+    </div>
+
+    <!-- Password -->
+    <div>
+      <label class="block text-sm mb-1 font-semibold">Password</label>
+      <input type="password" name="password"
+             class="w-full p-2 bg-white/10 rounded outline-none"
+             placeholder="Create password" required>
+    </div>
 
     <!-- NFC UID -->
-    <label class="block mb-4">
-        <span class="text-gray-300 text-sm">NFC UID (Teacher card)</span>
-        <input type="text" name="nfc_uid"
-               placeholder="Tap-to-read UID, or paste UID here"
-               class="w-full bg-white/10 border border-white/20 px-3 py-2 rounded">
-    </label>
+    <div>
+      <label class="block text-sm mb-1 font-semibold">NFC UID (Optional)</label>
+      <input type="text" name="nfc_uid"
+             class="w-full p-2 bg-white/10 rounded outline-none"
+             placeholder="Tap card on device to get UID">
+    </div>
 
-    <!-- Classes multi-select -->
-    <label class="block mb-4">
-        <span class="text-gray-300 text-sm">Assign Classes</span>
-        <select name="classes" multiple
-                class="w-full bg-white/10 border border-white/20 px-3 py-2 rounded min-h-[120px]">
-            {% for c in classes %}
-            <option value="{{ c.id }}">
-                {{ c.name }}
-            </option>
-            {% endfor %}
-        </select>
-        <p class="text-xs text-gray-400 mt-1">
-            Hold CTRL (Windows) / CMD (Mac) to select multiple classes.
-        </p>
-    </label>
+    <!-- Assign Classes -->
+    <div>
+      <label class="block text-sm mb-1 font-semibold">Assign Classes</label>
+      <select name="classes" multiple
+              class="w-full p-2 bg-white/10 rounded h-32 outline-none">
+        {% for c in classes %}
+          <option value="{{ c.id }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+      <p class="text-xs text-gray-300">Hold CTRL to select multiple</p>
+    </div>
 
-    <!-- Subjects multi-select -->
-    <label class="block mb-6">
-        <span class="text-gray-300 text-sm">Assign Subjects</span>
-        <select name="subjects" multiple
-                class="w-full bg-white/10 border border-white/20 px-3 py-2 rounded min-h-[120px]">
-            {% for s in subjects %}
-            <option value="{{ s.id }}">
-                {{ s.code }} — {{ s.name }}
-            </option>
-            {% endfor %}
-        </select>
-    </label>
+    <!-- Assign Subjects -->
+    <div>
+      <label class="block text-sm mb-1 font-semibold">Assign Subjects</label>
+      <select name="subjects" multiple
+              class="w-full p-2 bg-white/10 rounded h-32 outline-none">
+        {% for s in subjects %}
+          <option value="{{ s.id }}">{{ s.code }} — {{ s.name }}</option>
+        {% endfor %}
+      </select>
+      <p class="text-xs text-gray-300">Hold CTRL to select multiple</p>
+    </div>
 
-    <button class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 rounded">
-        Save Teacher Profile
+    <button class="px-4 py-2 bg-sky-600 hover:bg-sky-700 rounded-md font-semibold">
+      Create Teacher
     </button>
-</form>
 
+  </form>
 </div>
-
 {% endblock %}

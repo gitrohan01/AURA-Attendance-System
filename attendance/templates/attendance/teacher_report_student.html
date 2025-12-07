@@ -1,0 +1,72 @@
+{% extends "attendance/base.html" %}
+
+{% block title %}Student Report — {{ student.student_id }}{% endblock %}
+
+{% block content %}
+
+<h1 class="text-3xl font-bold text-sky-400 mb-6">
+    👤 Student Report — {{ student.first_name }} {{ student.last_name }}
+</h1>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- ================= STUDENT INFO ================= -->
+    <div class="bg-white/5 p-6 rounded-xl border border-white/10 shadow">
+        <h2 class="text-xl font-semibold mb-4">📌 Student Details</h2>
+
+        <p><strong>ID:</strong> {{ student.student_id }}</p>
+        <p><strong>Name:</strong> {{ student.first_name }} {{ student.last_name }}</p>
+        <p><strong>Email:</strong> {{ student.email }}</p>
+        <p><strong>Class:</strong> {{ student.class_group.name }}</p>
+        <p><strong>NFC UID:</strong> {{ student.nfc_uid }}</p>
+    </div>
+
+    <!-- ================= SUMMARY CARD ================= -->
+    <div class="bg-white/5 p-6 rounded-xl border border-white/10 shadow">
+        <h2 class="text-xl font-semibold mb-4">📊 Attendance Summary</h2>
+
+        <p><strong>Total Sessions:</strong> {{ total_sessions }}</p>
+        <p><strong>Present:</strong> {{ present_count }}</p>
+        <p><strong>Absent:</strong> {{ absent_count }}</p>
+        <p><strong>Percentage:</strong> {{ percentage }}%</p>
+    </div>
+
+</div>
+
+<!-- ================= ATTENDANCE RECORDS ================= -->
+<div class="mt-8 bg-white/5 p-6 rounded-xl border border-white/10 shadow">
+
+    <h2 class="text-xl font-semibold mb-4">📅 Attendance Records</h2>
+
+    {% if records %}
+    <table class="w-full text-left border-collapse">
+        <thead class="bg-white/10">
+            <tr>
+                <th class="p-2">Session ID</th>
+                <th class="p-2">Date</th>
+                <th class="p-2">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in records %}
+            <tr class="border-t border-white/10">
+                <td class="p-2">{{ r.session.session_id }}</td>
+                <td class="p-2">{{ r.timestamp|date:"d M Y, h:i A" }}</td>
+                <td class="p-2">
+                    {% if r.present %}
+                        <span class="text-green-400 font-semibold">Present</span>
+                    {% else %}
+                        <span class="text-red-400 font-semibold">Absent</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% else %}
+    <p class="text-gray-400">No attendance data available for this student.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

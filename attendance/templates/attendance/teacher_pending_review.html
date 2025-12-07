@@ -1,0 +1,49 @@
+{% extends "attendance/base.html" %}
+{% block title %}Review Pending Session — AURA{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-4">Review Pending Session</h1>
+
+<form action="{% url 'teacher_pending_submit' pending.id %}" method="post">
+  {% csrf_token %}
+
+  <!-- Subject -->
+  <label class="block text-gray-300 mb-1">Select Subject</label>
+  <select name="subject" class="w-full bg-white/10 p-2 rounded mb-4">
+    {% for s in subjects %}
+      <option value="{{ s.id }}">{{ s.name }} ({{ s.code }})</option>
+    {% endfor %}
+  </select>
+
+  <!-- Class -->
+  <label class="block text-gray-300 mb-1">Select Class</label>
+  <select name="class_group" class="w-full bg-white/10 p-2 rounded mb-4">
+    {% for c in classes %}
+      <option value="{{ c.id }}">{{ c.name }}</option>
+    {% endfor %}
+  </select>
+
+  <!-- Students -->
+  <h2 class="text-xl font-semibold mb-2">Students</h2>
+
+  <div class="space-y-2">
+    {% for s in pending.students.all %}
+      <div class="p-3 bg-white/5 rounded flex justify-between items-center">
+        <div>{{ s.student.first_name }} {{ s.student.last_name }}</div>
+
+        <select name="present_{{ s.id }}" class="bg-white/10 rounded px-2 py-1">
+          <option value="1" {% if s.present %}selected{% endif %}>Present</option>
+          <option value="0" {% if not s.present %}selected{% endif %}>Absent</option>
+        </select>
+      </div>
+    {% endfor %}
+  </div>
+
+  <button type="submit"
+          class="mt-6 w-full bg-green-600 hover:bg-green-700 py-3 rounded-lg">
+    Submit Final Attendance
+  </button>
+
+</form>
+
+{% endblock %}

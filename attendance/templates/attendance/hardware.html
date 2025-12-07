@@ -34,70 +34,103 @@
     </style>
 </head>
 <body>
-    <header>
-        <h1>Hardware Configuration</h1>
-        <nav>
-            <a href="/">Home</a> |
-            <a href="/about/">About</a> |
-            <a href="/contact/">Contact</a>
-        </nav>
-    </header>
 
-    <section class="hardware-item">
-        <h2>ESP32-S3 DevKitC-1</h2>
-        <p>
-            The central controller of AURA. It manages communication between all modules — the PN532 RFID, ESP32-CAM, and the server. 
-            The ESP32-S3 offers dual-core processing and native AI acceleration, making it perfect for IoT and recognition tasks.
-        </p>
-        <a href="https://www.amazon.in/s?k=ESP32-S3+DevKitC-1" target="_blank">🔗 Buy on Amazon</a>
-    </section>
+<header>
+    <h1>Hardware Configuration</h1>
+    <nav>
+        <a href="/">Home</a> |
+        <a href="/about/">About</a> |
+        <a href="/contact/">Contact</a>
+    </nav>
+</header>
 
-    <section class="hardware-item">
-        <h2>ESP32-CAM</h2>
-        <p>
-            Used for facial recognition and image verification. It captures the student’s image and verifies it against stored SD card data.
-            The module includes a built-in OV2640 camera and supports SD card storage.
-        </p>
-        <a href="https://www.amazon.in/s?k=ESP32-CAM" target="_blank">🔗 Buy on Amazon</a>
-    </section>
+<section class="hardware-item">
+    <h2>ESP32-S3 DevKitC-1</h2>
+    <p>
+        The main controller of AURA. This classroom device handles NFC card scanning,
+        session logic, pending attendance creation, local queuing, and wireless transmission
+        to the gateway. It communicates with the PN532 using I²C and sends attendance data
+        via NRF24L01.
+    </p>
+    <a href="https://www.amazon.in/s?k=ESP32-S3+DevKitC-1" target="_blank">🔗 Buy on Amazon</a>
+</section>
 
-    <section class="hardware-item">
-        <h2>PN532 NFC Module</h2>
-        <p>
-            Used for RFID/NFC card reading. Both teacher and student cards are verified using this module, which communicates via I2C/SPI with the ESP32.
-        </p>
-        <a href="https://www.amazon.in/s?k=PN532+NFC+Module" target="_blank">🔗 Buy on Amazon</a>
-    </section>
+<section class="hardware-item">
+    <h2>ESP32-WROOM (NRF Gateway)</h2>
+    <p>
+        The receiver unit connected to the server/laptop. It receives encrypted attendance
+        packets from the classroom ESP32-S3 via NRF24L01 and forwards them to the
+        Python Bridge for real-time processing.
+    </p>
+    <a href="https://www.amazon.in/s?k=ESP32+WROOM" target="_blank">🔗 Buy on Amazon</a>
+</section>
 
-    <section class="hardware-item">
-        <h2>2.4” ILI9341 SPI TFT Display</h2>
-        <p>
-            Acts as the interface for the teacher. Displays session start, student verification, and summary before upload.
-            Controlled via SPI with touch input for user interaction.
-        </p>
-        <a href="https://www.amazon.in/s?k=2.4+inch+ILI9341+SPI+TFT+Display" target="_blank">🔗 Buy on Amazon</a>
-    </section>
+<section class="hardware-item">
+    <h2>PN532 NFC Module (I²C)</h2>
+    <p>
+        The RFID/NFC reader used by both teachers and students. It reads Mifare Classic
+        UID cards and transmits the UID to the ESP32-S3 for attendance marking and
+        session start/end authentication.
+    </p>
+    <a href="https://www.amazon.in/s?k=PN532+NFC+Module" target="_blank">🔗 Buy on Amazon</a>
+</section>
 
-    <section class="hardware-item">
-        <h2>NRF24L01 Wireless Module</h2>
-        <p>
-            Provides optional long-range wireless connectivity between devices or the main server when Wi-Fi is unavailable.
-        </p>
-        <a href="https://www.amazon.in/s?k=NRF24L01+Module" target="_blank">🔗 Buy on Amazon</a>
-    </section>
+<section class="hardware-item">
+    <h2>NRF24L01+ PA+LNA Wireless Module</h2>
+    <p>
+        High-power (PA+LNA) NRF module for long-range, highly stable communication.
+        Used between the classroom device (sender) and the ESP32-WROOM gateway
+        (receiver). The 10µF capacitor is added for voltage stabilization.
+    </p>
+    <a href="https://www.amazon.in/s?k=NRF24L01+PA+LNA" target="_blank">🔗 Buy on Amazon</a>
+</section>
 
-    <section class="hardware-item">
-        <h2>SD Card Module</h2>
-        <p>
-            Stores image data, session logs, and temporary attendance records before uploading to the main server. 
-            Ensures offline functionality for each class session.
-        </p>
-        <a href="https://www.amazon.in/s?k=SD+Card+Module+Arduino" target="_blank">🔗 Buy on Amazon</a>
-    </section>
+<section class="hardware-item">
+    <h2>10µF Capacitor</h2>
+    <p>
+        Placed across the VCC and GND pins of the NRF24L01 module to prevent voltage
+        drops and ensure stable wireless transmission.
+    </p>
+</section>
 
-    <footer>
-        <p>Developed with ❤️ by <strong>Rohan Rajendra Deshmukh</strong> | Project AURA © 2025</p>
-    </footer>
+<section class="hardware-item">
+    <h2>2000mAh Rechargeable Battery + Holder + Charging Module</h2>
+    <p>
+        Powers the classroom ESP32-S3 device during operation. The charging module
+        allows USB recharging, enabling portable and wire-free classroom deployment.
+    </p>
+</section>
+
+<section class="hardware-item">
+    <h2>USB Type-C Cable</h2>
+    <p>
+        Used for powering and programming the ESP32-S3 and ESP32-WROOM modules.
+        Essential for firmware uploads and serial debugging.
+    </p>
+</section>
+
+<section class="hardware-item">
+    <h2>Mifare Classic 1K Cards</h2>
+    <p>
+        NFC cards assigned to teachers and students. Each card contains a unique UID used
+        for session authentication (teacher) and attendance marking (students).
+    </p>
+</section>
+
+<section class="hardware-item">
+    <h2>The AURA Server (The Most Powerful Hardware of All 😄)</h2>
+    <p>
+        A regular laptop or desktop running Django, Python Bridge, and the NRF gateway
+        interface. Handles session creation, pending attendance parsing, teacher review,
+        final attendance storage, analytics generation, and exports.
+        <br><br>
+        *Also handles the emotional damage caused by debugging NRF at 2 AM.*
+    </p>
+</section>
+
+<footer>
+    <p>Developed with ❤️ by <strong>Rohan Rajendra Deshmukh</strong> | Project AURA © 2025</p>
+</footer>
+
 </body>
 </html>
-

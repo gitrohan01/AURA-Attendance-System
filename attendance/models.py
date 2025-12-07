@@ -203,3 +203,69 @@ def set_teacher_flags(sender, instance, created, **kwargs):
         user.is_staff = True
 
     user.save()
+
+@receiver(post_save, sender=User)
+def ensure_teacher_profile(sender, instance, created, **kwargs):
+    """
+    Whenever a User with is_teacher=True is saved (via admin/HOD/etc),
+    make sure a TeacherProfile exists.
+    """
+    if instance.is_teacher:
+        TeacherProfile.objects.get_or_create(user=instance)
+
+# =====================================================================
+# NEW: Pending Session Models (IoT → Python Bridge → Teacher Review)
+# =====================================================================
+class PendingSession(models.Model):
+    device_id = models.CharField(max_length=120, blank=True, null=True)
+
+    teacher = models.ForeignKey(
+        User, on_delete=models.SET_NULL,
+        null=True, blank=True
+    )
+
+    # REQUIRED: temp session ID from device
+    temp_id = models.CharField(max_length=200, blank=True, null=True)
+
+    subject = models.ForeignKey(
+        Subject, on_delete=models.SET_NULL,
+        null=True, blank=True
+    )
+
+    class_group = models.ForeignKey(
+        ClassGroup, on_delete=models.SET_NULL,
+        null=True, blank=True
+    )
+
+    finalized = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"PendingSession {self.temp_id or self.id}"
+
+
+
+class PendingStudent(models.Model):
+    """
+    Temporary student attendance entry.
+    Converted into Attendance AFTER teacher final submission.
+    """
+
+    pending_session = models.ForeignKey(
+        PendingSession,
+        on_delete=models.CASCADE,
+        related_name="students"
+    )
+
+    student = models.ForeignKey(
+        "Student", on_delete=models.CASCADE
+    )
+
+    present = models.BooleanField(default=True)
+
+    timestamp = models.DateTimeField(
+        blank=True, null=True
+    )
+
+    def __str__(self):
+        return f"{self.student.student_id} -> {self.present}"

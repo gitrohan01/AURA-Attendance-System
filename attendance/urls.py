@@ -86,9 +86,9 @@ urlpatterns = [
     path("hod/dashboard/", views.hod_dashboard, name="hod_dashboard"),
     path("hod/teacher/<int:teacher_id>/", views.hod_teacher_detail, name="hod_teacher_detail"),
 
-    # HOD: Fine & Devices
-    path("hod/fines/", views.fine_calculator, name="hod_fine_calculator"),
-    path("hod/fines/class/<int:class_id>/", views.fine_calculator, name="hod_fine_calculator_class"),
+    path("hod/fines/", hod_views.hod_fine_calculator, name="hod_fine_calculator"),
+    path("hod/fines/class/<int:class_id>/", hod_views.hod_fine_calculator, name="hod_fine_calculator_class"),
+
 
     path("hod/devices/", views.device_status, name="device_status"),
 
@@ -100,6 +100,20 @@ urlpatterns = [
     path("teacher/reports/subject/<int:subject_id>/", views.teacher_report_subject, name="teacher_report_subject"),
     path("teacher/reports/student/<str:student_id>/", views.teacher_report_student, name="teacher_report_student"),
     path("teacher/reports/monthly/", views.teacher_report_monthly, name="teacher_report_monthly"),
+    path("teacher/reports/export/", views.teacher_export_center, name="teacher_export_center"),
+    # Export Center
+    path("teacher/reports/export/", views.teacher_export_center, name="teacher_export_center"),
+
+# Single class export
+    path("teacher/export/class/<int:class_id>/<str:fmt>/", views.export_class, name="export_class"),
+
+# Single subject export
+    path("teacher/export/subject/<int:subject_id>/<str:fmt>/", views.export_subject, name="export_subject"),
+
+# Bulk ZIP export
+    path("teacher/export/bulk/<str:mode>/", views.bulk_export_zip, name="bulk_export_zip"),
+
+
 
     # Subject Reports
     path("teacher/report/subject/<int:subject_id>/", views.teacher_report_subject, name="teacher_report_subject"),
@@ -178,7 +192,9 @@ path("hod/analytics/", hod_views.hod_analytics_page, name="hod_analytics_page"),
     path("hod/report/overview/pdf/", hod_views.hod_overview_report_pdf, name="hod_overview_report_pdf"),
 
 
+path("teacher/pending/", views.teacher_pending_list, name="teacher_pending_list"),
+path("teacher/pending/<int:pk>/", views.teacher_pending_review, name="teacher_pending_review"),
+path("teacher/pending/<int:pk>/submit/", views.teacher_pending_submit, name="teacher_pending_submit"),
+
+path("logout/", views.logout_view, name="logout"),
 ]
-
-
-

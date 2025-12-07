@@ -1,0 +1,30 @@
+{% extends "attendance/base.html" %}
+{% block title %}Pending Sessions — AURA{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-4">Pending Sessions</h1>
+
+{% if pendings %}
+  <div class="space-y-3">
+    {% for p in pendings %}
+      <div class="p-4 bg-white/5 rounded-lg flex justify-between items-center">
+        <div>
+          <div class="font-semibold text-lg">Pending Session #{{ p.id }}</div>
+          <div class="text-sm text-gray-400">
+            Device: {{ p.device_id }} |
+            Created: {{ p.created_at }}
+          </div>
+        </div>
+
+        <a href="{% url 'teacher_pending_review' p.id %}" 
+           class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg">
+          Review
+        </a>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="text-gray-400">No pending sessions.</p>
+{% endif %}
+
+{% endblock %}

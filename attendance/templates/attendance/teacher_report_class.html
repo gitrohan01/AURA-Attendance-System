@@ -1,0 +1,67 @@
+{% extends "attendance/base.html" %}
+
+{% block title %}Class Report — {{ class_group.name }}{% endblock %}
+
+{% block content %}
+
+<h1 class="text-3xl font-bold text-sky-400 mb-6">
+    📘 Class Report — {{ class_group.name }}
+</h1>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- ================= STUDENT LIST ================= -->
+    <div class="bg-white/5 p-6 rounded-xl shadow border border-white/10">
+        <h2 class="text-xl font-semibold mb-4">👨‍🎓 Students</h2>
+
+        {% if students %}
+        <ul class="space-y-2">
+            {% for s in students %}
+            <li class="p-3 bg-white/10 rounded hover:bg-white/20 transition">
+                {{ s.student_id }} — {{ s.first_name }} {{ s.last_name }}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-400">No students in this class.</p>
+        {% endif %}
+    </div>
+
+    <!-- ================= SESSION LIST ================= -->
+    <div class="bg-white/5 p-6 rounded-xl shadow border border-white/10">
+        <h2 class="text-xl font-semibold mb-4">📅 Sessions</h2>
+
+        {% if sessions %}
+        <ul class="space-y-2">
+            {% for s in sessions %}
+            <li class="p-3 bg-white/10 rounded hover:bg-white/20 transition">
+                {{ s.session_id }}  
+                <br>
+                <span class="text-gray-400 text-sm">{{ s.start_time }}</span>
+
+                <!-- Export buttons -->
+                <div class="mt-2 flex gap-2">
+                    <a href="/session/{{ s.id }}/export/csv/" 
+                       class="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs">
+                        CSV
+                    </a>
+                    <a href="/session/{{ s.id }}/export/xlsx/"
+                       class="px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs">
+                        XLSX
+                    </a>
+                    <a href="/session/{{ s.id }}/export/pdf/"
+                       class="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs">
+                        PDF
+                    </a>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-400">No sessions held for this class.</p>
+        {% endif %}
+    </div>
+
+</div>
+
+{% endblock %}

@@ -373,3 +373,21 @@ def build_hod_weekly_digest(flagged):
     })
     return "AURA — Weekly Red-Flag Digest", html
 
+import re
+
+EMAIL_REGEX = re.compile(
+    r"^[a-zA-Z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+)
+
+def is_valid_email(email: str) -> bool:
+    """
+    Strong validation:
+    - must contain @
+    - must contain domain & TLD
+    - no spaces
+    - lowercase allowed
+    """
+    if not email:
+        return False
+    email = email.strip().lower()
+    return EMAIL_REGEX.match(email) is not None

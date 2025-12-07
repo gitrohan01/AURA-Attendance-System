@@ -17,7 +17,6 @@
         body {
             font-family: 'Inter', sans-serif;
         }
-
         .sidebar-link {
             transition: 0.15s all;
             border-radius: 8px;
@@ -25,7 +24,6 @@
         .sidebar-link:hover {
             background: rgba(255, 255, 255, 0.08);
         }
-
         .sidebar-heading {
             font-size: 0.70rem;
             text-transform: uppercase;
@@ -43,17 +41,26 @@
     <aside class="w-64 bg-[#111114] border-r border-white/10 px-4 py-6 flex flex-col fixed md:static h-full">
         <div class="text-3xl font-bold mb-8 text-sky-400 tracking-wide">AURA</div>
 
-        <!-- Navigation -->
         <nav class="space-y-1 text-gray-300">
 
             {% if user.is_authenticated %}
 
-                <!-- ========== TEACHER MENU ========== -->
+                <!-- ======== TEACHER MENU ======== -->
                 {% if user.is_teacher %}
                 <div class="sidebar-heading">Teacher</div>
 
                 <a href="{% url 'teacher_dashboard' %}" class="flex items-center gap-2 p-2 sidebar-link">
                     <i class="ph ph-gauge"></i> Dashboard
+                </a>
+
+                <!-- NEW: Pending Sessions -->
+                <a href="{% url 'teacher_pending_list' %}" class="flex items-center gap-2 p-2 sidebar-link">
+    <i class="ph ph-clock"></i> Pending Sessions
+</a>
+
+                <!-- OLD Sessions → renamed to Past Sessions -->
+                <a href="{% url 'teacher_sessions' %}" class="flex items-center gap-2 p-2 sidebar-link">
+                    <i class="ph ph-calendar-check"></i> Past Sessions
                 </a>
 
                 <a href="{% url 'teacher_reports' %}" class="flex items-center gap-2 p-2 sidebar-link">
@@ -63,15 +70,10 @@
                 <a href="{% url 'teacher_redflags' %}" class="flex items-center gap-2 p-2 sidebar-link">
                     <i class="ph ph-warning"></i> Red Flags
                 </a>
+                {% endif %}
 
-                <a href="{% url 'teacher_sessions' %}" class="flex items-center gap-2 p-2 sidebar-link">
-                    <i class="ph ph-calendar-check"></i> Sessions
-                </a>
-                {% endif %}  <!-- END teacher -->
-
-                <!-- ========== HOD MENU ========== -->
+                <!-- ======== HOD MENU ======== -->
                 {% if user.is_hod %}
-
                 <div class="sidebar-heading">HOD</div>
 
                 <a href="{% url 'hod_dashboard' %}" class="flex items-center gap-2 p-2 sidebar-link">
@@ -115,12 +117,11 @@
                 <a href="{% url 'hod_analytics_page' %}" class="flex items-center gap-2 p-2 sidebar-link">
                     <i class="ph ph-chart-bar"></i> Analytics
                 </a>
+                {% endif %}
 
-                {% endif %}  <!-- END HOD -->
+            {% endif %}
 
-            {% endif %}  <!-- END user.is_authenticated -->
-
-            <!-- ========== GENERAL MENU ========== -->
+            <!-- ======== GENERAL MENU ======== -->
             <div class="sidebar-heading">General</div>
 
             <a href="{% url 'about' %}" class="flex items-center gap-2 p-2 sidebar-link">
@@ -152,8 +153,7 @@
 
     <!-- Main Content -->
     <main class="flex-1 p-6 md:ml-64">
-        {% block content %}
-        {% endblock %}
+        {% block content %}{% endblock %}
     </main>
 
 </body>
